@@ -12,6 +12,8 @@ import {
   Bus,
   Navigation,
   Settings,
+  Map,
+  Activity,
 } from "lucide-react"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import {
@@ -38,6 +40,7 @@ const DriverDashboard = () => {
   const [error, setError] = useState("")
   const [showCreateRoute, setShowCreateRoute] = useState(false)
   const [showBusSetup, setShowBusSetup] = useState(false)
+  // const [showRouteTracker, setShowRouteTracker] = useState(false)
   const [newRoute, setNewRoute] = useState({
     routeName: "",
     stops: [""],
@@ -51,6 +54,7 @@ const DriverDashboard = () => {
   const [creatingRoute, setCreatingRoute] = useState(false)
   const [creatingBus, setCreatingBus] = useState(false)
   const [markingStop, setMarkingStop] = useState(null)
+  const [activeView, setActiveView] = useState("dashboard") // 'dashboard' or 'tracker'
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -392,6 +396,37 @@ const DriverDashboard = () => {
     }
   }
 
+  // Handle location updates from RouteTracker
+  const handleLocationUpdate = async (location) => {
+    if (!busData || !user) return
+
+    try {
+      // Update bus location in Firestore
+      const busRef = doc(db, "buses", busData.id)
+      await updateDoc(busRef, {
+        currentLocation: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+        lastLocationUpdate: serverTimestamp(),
+        isMoving: true,
+      })
+
+      // Update local state
+      setBusData((prev) => ({
+        ...prev,
+        currentLocation: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+        },
+        lastLocationUpdate: { seconds: Date.now() / 1000 },
+        isMoving: true,
+      }))
+    } catch (error) {
+      console.error("Error updating location:", error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -454,6 +489,54 @@ const DriverDashboard = () => {
     )
   }
 
+  // Render RouteTracker component if active
+  if (activeView === "tracker") {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <div className="flex items-center">
+                <Bus className="w-8 h-8 text-blue-600 mr-3" />
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Route Tracker
+                </h1>
+              </div>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setActiveView("dashboard")}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Dashboard
+                </button>
+                <span className="text-sm text-gray-600">
+                  Welcome, {user?.email}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RouteTracker Component */}
+        <RouteTracker
+          busData={busData}
+          routeData={routeData}
+          onLocationUpdate={handleLocationUpdate}
+          onStopUpdate={markStop}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -467,6 +550,16 @@ const DriverDashboard = () => {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Route Tracker Button - Only show if bus and route are set up */}
+              {busData && routeData && (
+                <button
+                  onClick={() => setActiveView("tracker")}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                >
+                  <Map className="w-4 h-4 mr-2" />
+                  Start Tracking
+                </button>
+              )}
               <span className="text-sm text-gray-600">
                 Welcome, {user?.email}
               </span>
@@ -483,6 +576,28 @@ const DriverDashboard = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Status Banner */}
+        {busData && routeData && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Activity className="w-5 h-5 text-green-600 mr-2" />
+                <span className="text-green-800 font-medium">
+                  Bus {busData.busNumber} is ready for route tracking on "
+                  {routeData.routeName}"
+                </span>
+              </div>
+              <button
+                onClick={() => setActiveView("tracker")}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+              >
+                <Map className="w-4 h-4 mr-2" />
+                Start Tracking
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Current Bus & Route Section */}
           <div className="bg-white rounded-lg shadow-sm p-6">
@@ -736,13 +851,11 @@ const DriverDashboard = () => {
                     ))}
                     <button
                       onClick={addStopField}
-                      className="text-blue-600 hover:text-blue-700 text-sm flex items-center"
+                      className="flex items-center text-blue-600 hover:text-blue-700 text-sm mt-2"
                     >
-                      <Plus className="w-4 h-4 mr-1" />
-                      Add Stop
+                      <Plus className="w-4 h-4 mr-1" /> Add Stop
                     </button>
                   </div>
-
                   <div className="flex space-x-2">
                     <button
                       onClick={createRoute}
@@ -754,7 +867,7 @@ const DriverDashboard = () => {
                       }`}
                     >
                       <Save className="w-4 h-4 mr-2" />
-                      {creatingRoute ? "Creating..." : "Save Route"}
+                      {creatingRoute ? "Creating..." : "Create Route"}
                     </button>
                     <button
                       onClick={() => setShowCreateRoute(false)}
@@ -767,77 +880,58 @@ const DriverDashboard = () => {
               </div>
             )}
 
-            {/* Existing Routes */}
-            <div>
-              <h3 className="font-medium text-gray-900 mb-4">Your Routes</h3>
-              {userRoutes.length > 0 ? (
-                <div className="space-y-3">
-                  {userRoutes.map((route) => (
-                    <div
-                      key={route.id}
-                      className="border border-gray-200 rounded-lg p-4"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">
-                            {route.routeName}
-                          </h4>
-                          <p className="text-sm text-gray-600 mt-1">
-                            {route.stops?.length} stops
-                          </p>
-                          <div className="mt-2">
-                            {route.stops?.slice(0, 3).map((stop, index) => (
-                              <span
-                                key={index}
-                                className="inline-block bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs mr-1 mb-1"
-                              >
-                                {stop}
-                              </span>
-                            ))}
-                            {route.stops?.length > 3 && (
-                              <span className="text-gray-500 text-xs">
-                                +{route.stops.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          {busData && (
-                            <button
-                              onClick={() => assignRouteToCurrentBus(route.id)}
-                              className={`px-3 py-1 rounded text-sm transition-colors ${
-                                busData.routeId === route.id
-                                  ? "bg-green-100 text-green-800 cursor-default"
-                                  : "bg-blue-600 text-white hover:bg-blue-700"
-                              }`}
-                              disabled={busData.routeId === route.id}
-                            >
-                              {busData.routeId === route.id
-                                ? "Active"
-                                : "Assign"}
-                            </button>
-                          )}
-                          <button
-                            onClick={() => deleteRoute(route.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
+            {/* List of User Routes */}
+            <h3 className="font-medium text-gray-900 mb-3">Your Routes</h3>
+            {userRoutes.length > 0 ? (
+              <ul className="space-y-4">
+                {userRoutes.map((route) => (
+                  <li
+                    key={route.id}
+                    className="bg-gray-50 rounded-lg p-4 shadow-sm flex items-start justify-between"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-800 mb-1">
+                        {route.routeName}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        Stops: {route.stops.join(" -> ")}
+                      </p>
+                      {busData && busData.routeId === route.id && (
+                        <span className="mt-1 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                          Currently Assigned
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Route className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No routes created yet</p>
-                  <p className="text-sm text-gray-400">
-                    Create your first route to get started
-                  </p>
-                </div>
-              )}
-            </div>
+                    <div className="flex space-x-2 mt-1">
+                      {busData && busData.routeId !== route.id && (
+                        <button
+                          onClick={() => assignRouteToCurrentBus(route.id)}
+                          className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600 transition-colors flex items-center"
+                          title="Assign to my bus"
+                        >
+                          <Bus className="w-4 h-4 mr-1" /> Assign
+                        </button>
+                      )}
+                      <button
+                        onClick={() => deleteRoute(route.id)}
+                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 transition-colors flex items-center"
+                        title="Delete route"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center py-8">
+                <Route className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No routes created yet</p>
+                <p className="text-sm text-gray-400">
+                  Click "Create Route" to add your first route
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

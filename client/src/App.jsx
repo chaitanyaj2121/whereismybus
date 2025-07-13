@@ -15,7 +15,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<DriverLogin />} />
           <Route path="/driver-dashboard" element={<DriverDashboard />} />
-          <Route path="/" element={<Navigate to="/login" />} />
+          <Route path="/logindriver" element={<Navigate to="/login" />} />
         </Routes>
       </div>
     </Router>

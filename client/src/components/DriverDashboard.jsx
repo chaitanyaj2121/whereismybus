@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react"
 import RouteTracker from "./RouteTracker"
+import { useNavigate } from "react-router-dom"
+
 import {
   LogOut,
   MapPin,
@@ -307,6 +309,13 @@ const DriverDashboard = () => {
       stops: prev.stops.map((stop, i) => (i === index ? value : stop)),
     }))
   }
+  const navigate = useNavigate()
+  const handleLoginBtn = () => {
+    // (Optional) Clear any session/localStorage data here
+    // localStorage.removeItem('userToken');
+
+    navigate("/loginDriver")
+  }
 
   const createRoute = async () => {
     if (
@@ -479,7 +488,7 @@ const DriverDashboard = () => {
             Please log in to access the driver dashboard
           </div>
           <button
-            onClick={handleLogout}
+            onClick={handleLoginBtn}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             Go to Login

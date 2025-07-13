@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react"
 import {
-  collection,
+  // Re-added: Used for collection reference implicitly by doc()
   doc,
   updateDoc,
-  query,
-  where,
   onSnapshot,
-  addDoc,
+  setDoc, // Used for creating/overwriting session with busId as doc ID
+  deleteDoc,
   serverTimestamp,
 } from "firebase/firestore"
 import { auth, db } from "../firebase/config"
@@ -19,6 +18,7 @@ import {
   Navigation,
   Square,
   AlertCircle,
+  X, // Added for modal close button
 } from "lucide-react"
 
 const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
@@ -27,62 +27,95 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
   const [isRouteActive, setIsRouteActive] = useState(false)
   const [loading, setLoading] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [modalMessage, setModalMessage] = useState("")
+  const [modalConfirmAction, setModalConfirmAction] = useState(null)
 
-  // Check for active session on component mount
+  // Function to show custom alert/error modal
+  const showAlert = (message) => {
+    setModalMessage(message)
+    setShowModal(true)
+    setModalConfirmAction(null) // Not a confirmation, just an alert
+  }
+
+  // Function to show custom confirmation modal
+  const showConfirm = (message, onConfirm) => {
+    setModalMessage(message)
+    setShowModal(true)
+    setModalConfirmAction(() => onConfirm) // Store the action to be called on confirm
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setModalMessage("")
+    setModalConfirmAction(null)
+  }
+
+  // Effect to check for and listen to an active session for the current bus
   useEffect(() => {
     const checkActiveSession = async () => {
-      if (!auth.currentUser || !busData) {
+      // Ensure busData and auth.currentUser are available
+      if (!auth.currentUser || !busData || !busData.id) {
         setSessionLoading(false)
         return
       }
 
       try {
-        const sessionQuery = query(
-          collection(db, "driverSessions"),
-          where("driverId", "==", auth.currentUser.uid),
-          where("busId", "==", busData.id),
-          where("isActive", "==", true)
+        // Reference to the specific session document for this bus
+        const sessionDocRef = doc(db, "busRouteSessions", busData.id)
+
+        // Listen for real-time updates on this specific document
+        const unsubscribe = onSnapshot(
+          sessionDocRef,
+          (snapshot) => {
+            if (snapshot.exists() && snapshot.data().isActive) {
+              const sessionData = snapshot.data()
+              const session = { id: snapshot.id, ...sessionData } // snapshot.id will be busData.id
+              setActiveSession(session)
+              setCurrentStopIndex(session.currentStopIndex || 0)
+              setIsRouteActive(true)
+            } else {
+              // No active session found for this bus
+              setActiveSession(null)
+              setIsRouteActive(false)
+              setCurrentStopIndex(0)
+            }
+            setSessionLoading(false)
+          },
+          (error) => {
+            console.error("Error listening to active session:", error)
+            showAlert(`Error listening to session: ${error.message}`)
+            setSessionLoading(false)
+          }
         )
 
-        const unsubscribe = onSnapshot(sessionQuery, (snapshot) => {
-          if (!snapshot.empty) {
-            const sessionData = snapshot.docs[0].data()
-            const session = { id: snapshot.docs[0].id, ...sessionData }
-            setActiveSession(session)
-            setCurrentStopIndex(session.currentStopIndex || 0)
-            setIsRouteActive(true)
-          } else {
-            setActiveSession(null)
-            setIsRouteActive(false)
-            setCurrentStopIndex(0)
-          }
-          setSessionLoading(false)
-        })
-
-        return unsubscribe
+        return () => unsubscribe() // Cleanup the listener on unmount
       } catch (error) {
-        console.error("Error checking active session:", error)
+        console.error("Error setting up active session listener:", error)
+        showAlert(`Error setting up session listener: ${error.message}`)
         setSessionLoading(false)
       }
     }
 
     checkActiveSession()
-  }, [busData])
+  }, [busData]) // Re-run if busData changes (e.g., bus is assigned)
 
   // Start route tracking
   const startRoute = async () => {
-    if (!auth.currentUser || !busData || !routeData) {
-      alert("Missing required data to start route")
+    if (!auth.currentUser || !busData || !busData.id || !routeData) {
+      showAlert(
+        "Missing required data to start route (Bus or Route not assigned)."
+      )
       return
     }
 
     try {
       setLoading(true)
 
-      // Create a new driver session
+      // Create a new driver session document with busData.id as its ID
       const sessionData = {
-        driverId: auth.currentUser.uid,
-        busId: busData.id,
+        driverId: auth.currentUser.uid, // This should match request.auth.uid in rules
+        busId: busData.id, // This should match request.resource.id and resource.data.busId in rules
         routeId: routeData.id,
         routeName: routeData.routeName,
         stops: routeData.stops,
@@ -98,14 +131,20 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
         },
       }
 
-      const docRef = await addDoc(collection(db, "driverSessions"), sessionData)
+      console.log("Attempting to start route with sessionData:", sessionData)
+      console.log("Authenticated User UID:", auth.currentUser.uid)
+      console.log("Bus ID:", busData.id)
 
-      // Update bus current stop
+      // Use setDoc to create/overwrite a document with busData.id as the document ID
+      const sessionDocRef = doc(db, "busRouteSessions", busData.id)
+      await setDoc(sessionDocRef, sessionData)
+
+      // Update bus document to link to this session
       const busRef = doc(db, "buses", busData.id)
       await updateDoc(busRef, {
         currentStop: routeData.stops[0],
         lastUpdated: serverTimestamp(),
-        sessionId: docRef.id,
+        sessionId: busData.id, // Link bus to its active session by its ID
       })
 
       // Call parent update function if provided
@@ -113,10 +152,10 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
         onRouteUpdate()
       }
 
-      alert(`Route "${routeData.routeName}" started successfully!`)
+      showAlert(`Route "${routeData.routeName}" started successfully!`)
     } catch (error) {
       console.error("Error starting route:", error)
-      alert("Failed to start route. Please try again.")
+      showAlert(`Failed to start route: ${error.message}. Please try again.`)
     } finally {
       setLoading(false)
     }
@@ -124,15 +163,15 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
 
   // Mark arrival at current stop
   const markArrival = async () => {
-    if (!activeSession || !busData || !routeData) return
+    if (!activeSession || !busData || !busData.id || !routeData) return
 
     try {
       setLoading(true)
       const nextStopIndex = currentStopIndex + 1
       const isLastStop = nextStopIndex >= routeData.stops.length
 
-      // Update the driver session
-      const sessionRef = doc(db, "driverSessions", activeSession.id)
+      // Reference to the active session document for this bus
+      const sessionRef = doc(db, "busRouteSessions", busData.id)
 
       const updateData = {
         currentStopIndex: nextStopIndex,
@@ -148,7 +187,7 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
           startedAt: serverTimestamp(),
         }
       } else {
-        // Mark route as completed
+        // Mark route as completed in the session
         updateData.isActive = false
         updateData.completedAt = serverTimestamp()
       }
@@ -166,13 +205,10 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
         busUpdateData.currentStop = routeData.stops[nextStopIndex]
       } else {
         busUpdateData.currentStop = null
-        busUpdateData.sessionId = null
+        busUpdateData.sessionId = null // Clear session ID from bus when route completes
       }
 
       await updateDoc(busRef, busUpdateData)
-
-      // REMOVED: Creation of arrival record in arrivals collection
-      // The arrival information is now only stored in the session progress
 
       // Call parent update function if provided
       if (onRouteUpdate) {
@@ -180,15 +216,15 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
       }
 
       if (isLastStop) {
-        alert("Route completed successfully!")
+        showAlert("Route completed successfully!")
       } else {
-        alert(
+        showAlert(
           `Arrived at ${routeData.stops[currentStopIndex]}. Next stop: ${routeData.stops[nextStopIndex]}`
         )
       }
     } catch (error) {
       console.error("Error marking arrival:", error)
-      alert("Failed to mark arrival. Please try again.")
+      showAlert(`Failed to mark arrival: ${error.message}. Please try again.`)
     } finally {
       setLoading(false)
     }
@@ -196,41 +232,37 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
 
   // End current route
   const endRoute = async () => {
-    if (
-      !activeSession ||
-      !window.confirm("Are you sure you want to end this route?")
-    )
-      return
+    if (!activeSession || !busData || !busData.id) return // No need for window.confirm here anymore
 
-    try {
-      setLoading(true)
-      const sessionRef = doc(db, "driverSessions", activeSession.id)
-      await updateDoc(sessionRef, {
-        isActive: false,
-        endedAt: serverTimestamp(),
-        endedEarly: true,
-      })
+    showConfirm("Are you sure you want to end this route?", async () => {
+      try {
+        setLoading(true)
+        // Delete the active session document for this bus
+        const sessionRef = doc(db, "busRouteSessions", busData.id)
+        await deleteDoc(sessionRef)
 
-      // Update bus
-      const busRef = doc(db, "buses", busData.id)
-      await updateDoc(busRef, {
-        currentStop: null,
-        sessionId: null,
-        lastUpdated: serverTimestamp(),
-      })
+        // Update bus to clear current route and session
+        const busRef = doc(db, "buses", busData.id)
+        await updateDoc(busRef, {
+          currentStop: null,
+          sessionId: null, // Clear session ID from bus
+          lastUpdated: serverTimestamp(),
+        })
 
-      // Call parent update function if provided
-      if (onRouteUpdate) {
-        onRouteUpdate()
+        // Call parent update function if provided
+        if (onRouteUpdate) {
+          onRouteUpdate()
+        }
+
+        showAlert("Route ended successfully!")
+      } catch (error) {
+        console.error("Error ending route:", error)
+        showAlert(`Failed to end route: ${error.message}. Please try again.`)
+      } finally {
+        setLoading(false)
+        closeModal() // Close modal after action
       }
-
-      alert("Route ended successfully!")
-    } catch (error) {
-      console.error("Error ending route:", error)
-      alert("Failed to end route. Please try again.")
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   if (sessionLoading) {
@@ -436,6 +468,49 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
             <Play className="h-5 w-5" />
             <span>{loading ? "Starting..." : "Start Route"}</span>
           </button>
+        </div>
+      )}
+
+      {/* Custom Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-800">
+                {modalConfirmAction ? "Confirm Action" : "Notification"}
+              </h3>
+              <button
+                onClick={closeModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-gray-700 mb-6">{modalMessage}</p>
+            <div className="flex justify-end space-x-3">
+              {modalConfirmAction && (
+                <button
+                  onClick={() => {
+                    modalConfirmAction()
+                    closeModal() // Close after confirming and executing action
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Confirm
+                </button>
+              )}
+              <button
+                onClick={closeModal}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  modalConfirmAction
+                    ? "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                    : "bg-blue-600 text-white hover:bg-blue-700"
+                }`}
+              >
+                {modalConfirmAction ? "Cancel" : "OK"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

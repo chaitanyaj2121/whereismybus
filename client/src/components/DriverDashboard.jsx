@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom"
 
 import {
   LogOut,
-  MapPin,
   Clock,
   Route,
   Plus,
@@ -16,7 +15,7 @@ import {
   Settings,
   Map,
   Activity,
-} from "lucide-react"
+} from "lucide-react" // Removed MapPin as it's not directly used here
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import {
   collection,
@@ -732,6 +731,7 @@ const DriverDashboard = () => {
                 </div>
               </div>
             )}
+
             {/* Your Created Routes */}
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
@@ -790,7 +790,7 @@ const DriverDashboard = () => {
           <RouteTracker
             busData={busData}
             routeData={routeData}
-            onLocationUpdate={handleLocationUpdate}
+            onRouteUpdate={handleLocationUpdate} // Changed from onLocationUpdate to onRouteUpdate for consistency
           />
         )}
       </main>

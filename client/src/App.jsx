@@ -8,6 +8,7 @@ import {
 import DriverLogin from "./components/DriverLogin"
 import DriverDashboard from "./components/DriverDashboard"
 import "./index.css"
+import HomePage from "./components/HomePage"
 function App() {
   return (
     <Router>
@@ -16,6 +17,7 @@ function App() {
           <Route path="/login" element={<DriverLogin />} />
           <Route path="/driver-dashboard" element={<DriverDashboard />} />
           <Route path="/logindriver" element={<Navigate to="/login" />} />
+          <Route path="/" element={<HomePage />} />
         </Routes>
       </div>
     </Router>

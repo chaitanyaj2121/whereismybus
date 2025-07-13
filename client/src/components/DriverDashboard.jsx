@@ -15,7 +15,8 @@ import {
   Settings,
   Map,
   Activity,
-} from "lucide-react" // Removed MapPin as it's not directly used here
+  Menu, // Added Menu icon for mobile sidebar toggle
+} from "lucide-react"
 import { onAuthStateChanged, signOut } from "firebase/auth"
 import {
   collection,
@@ -54,6 +55,7 @@ const DriverDashboard = () => {
   const [creatingRoute, setCreatingRoute] = useState(false)
   const [creatingBus, setCreatingBus] = useState(false)
   const [activeView, setActiveView] = useState("dashboard") // 'dashboard' or 'tracker'
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false) // State for mobile sidebar
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -268,9 +270,6 @@ const DriverDashboard = () => {
   }
   const navigate = useNavigate()
   const handleLoginBtn = () => {
-    // (Optional) Clear any session/localStorage data here
-    // localStorage.removeItem('userToken');
-
     navigate("/loginDriver")
   }
 
@@ -406,7 +405,7 @@ const DriverDashboard = () => {
 
   if (error && error !== "No user logged in.") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center max-w-md mx-auto">
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             <h3 className="font-bold mb-2">Connection Error</h3>
@@ -443,7 +442,7 @@ const DriverDashboard = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">
             Please log in to access the driver dashboard.
@@ -460,18 +459,41 @@ const DriverDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-800 text-white flex flex-col p-4 shadow-lg">
-        <div className="flex items-center mb-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+      {/* Mobile Header for Sidebar Toggle */}
+      <div className="bg-gray-800 text-white p-4 flex items-center justify-between md:hidden">
+        <div className="flex items-center">
           <Bus className="h-8 w-8 mr-2 text-blue-400" />
           <h1 className="text-2xl font-bold">Driver Panel</h1>
         </div>
-        <nav className="flex-1">
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+          {isSidebarOpen ? (
+            <X className="h-6 w-6 text-white" />
+          ) : (
+            <Menu className="h-6 w-6 text-white" />
+          )}
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 bg-gray-800 text-white flex-col p-4 shadow-lg z-50 w-64 md:relative md:flex
+                   ${isSidebarOpen ? "flex" : "hidden"}`}
+      >
+        <div className="hidden md:flex items-center mb-8">
+          {" "}
+          {/* Hide on mobile, show on desktop */}
+          <Bus className="h-8 w-8 mr-2 text-blue-400" />
+          <h1 className="text-2xl font-bold">Driver Panel</h1>
+        </div>
+        <nav className="flex-1 mt-8 md:mt-0">
           <ul className="space-y-2">
             <li>
               <button
-                onClick={() => setActiveView("dashboard")}
+                onClick={() => {
+                  setActiveView("dashboard")
+                  setIsSidebarOpen(false)
+                }}
                 className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
                   activeView === "dashboard"
                     ? "bg-blue-700 text-white"
@@ -485,7 +507,10 @@ const DriverDashboard = () => {
             {busData && busData.routeId && (
               <li>
                 <button
-                  onClick={() => setActiveView("tracker")}
+                  onClick={() => {
+                    setActiveView("tracker")
+                    setIsSidebarOpen(false)
+                  }}
                   className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
                     activeView === "tracker"
                       ? "bg-blue-700 text-white"
@@ -499,7 +524,11 @@ const DriverDashboard = () => {
             )}
             <li>
               <button
-                onClick={() => setShowCreateRoute(!showCreateRoute)}
+                onClick={() => {
+                  setShowCreateRoute(!showCreateRoute)
+                  setShowBusSetup(false) // Close other forms when opening this one
+                  setIsSidebarOpen(false)
+                }}
                 className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
                   showCreateRoute
                     ? "bg-blue-700 text-white"
@@ -512,7 +541,11 @@ const DriverDashboard = () => {
             </li>
             <li>
               <button
-                onClick={() => setShowBusSetup(!showBusSetup)}
+                onClick={() => {
+                  setShowBusSetup(!showBusSetup)
+                  setShowCreateRoute(false) // Close other forms when opening this one
+                  setIsSidebarOpen(false)
+                }}
                 className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
                   showBusSetup
                     ? "bg-blue-700 text-white"
@@ -537,22 +570,24 @@ const DriverDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-8 overflow-y-auto">
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto">
         {/* User Info */}
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8 flex justify-between items-center">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mb-8 flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
-            <h2 className="text-3xl font-semibold text-gray-800 mb-1">
+            <h2 className="text-xl md:text-3xl font-semibold text-gray-800 mb-1">
               Welcome, Driver!
             </h2>
-            <p className="text-gray-600">{user ? user.email : "Guest User"}</p>
+            <p className="text-gray-600 text-sm md:text-base">
+              {user ? user.email : "Guest User"}
+            </p>
           </div>
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center text-gray-700">
-              <Clock className="mr-2" />
+          <div className="flex items-center space-x-4 mt-4 md:mt-0">
+            <div className="flex items-center text-gray-700 text-sm md:text-base">
+              <Clock className="mr-2 h-4 w-4 md:h-5 md:w-5" />
               <p>{new Date().toLocaleTimeString()}</p>
             </div>
-            <div className="flex items-center text-gray-700">
-              <Activity className="mr-2" />
+            <div className="flex items-center text-gray-700 text-sm md:text-base">
+              <Activity className="mr-2 h-4 w-4 md:h-5 md:w-5" />
               <p>Online</p>
             </div>
           </div>
@@ -563,9 +598,10 @@ const DriverDashboard = () => {
           <>
             {/* Bus Setup Section */}
             {showBusSetup && (
-              <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-blue-200">
-                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <Bus className="mr-2 text-blue-600" /> Bus Setup{" "}
+              <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mb-8 border border-blue-200">
+                <h3 className="text-xl md:text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <Bus className="mr-2 text-blue-600 h-5 w-5 md:h-6 md:w-6" />{" "}
+                  Bus Setup
                   <button
                     onClick={() => setShowBusSetup(false)}
                     className="ml-auto p-1 rounded-full hover:bg-gray-100 transition-colors"
@@ -574,8 +610,8 @@ const DriverDashboard = () => {
                   </button>
                 </h3>
                 {!busData ? (
-                  <div className="space-y-4">
-                    <p className="text-gray-600">
+                  <div classNameD="space-y-4">
+                    <p className="text-gray-600 text-sm md:text-base mb-4">
                       You don't have a bus registered yet. Please create one.
                     </p>
                     <input
@@ -585,7 +621,7 @@ const DriverDashboard = () => {
                       onChange={(e) =>
                         setNewBus({ ...newBus, busNumber: e.target.value })
                       }
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 mb-3"
                     />
                     <input
                       type="text"
@@ -594,7 +630,7 @@ const DriverDashboard = () => {
                       onChange={(e) =>
                         setNewBus({ ...newBus, busModel: e.target.value })
                       }
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 mb-3"
                     />
                     <input
                       type="number"
@@ -603,7 +639,7 @@ const DriverDashboard = () => {
                       onChange={(e) =>
                         setNewBus({ ...newBus, capacity: e.target.value })
                       }
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 mb-4"
                     />
                     <button
                       onClick={createBus}
@@ -628,28 +664,28 @@ const DriverDashboard = () => {
                   </div>
                 ) : (
                   <div>
-                    <h4 className="text-xl font-semibold text-gray-700 mb-2">
+                    <h4 className="text-lg md:text-xl font-semibold text-gray-700 mb-2">
                       Your Registered Bus:
                     </h4>
-                    <p className="text-gray-600">
+                    <p className="text-gray-600 text-sm md:text-base">
                       <span className="font-medium">Bus Number:</span>{" "}
                       {busData.busNumber}
                     </p>
-                    <p className="text-gray-600">
+                    <p className="text-gray-600 text-sm md:text-base">
                       <span className="font-medium">Bus Model:</span>{" "}
                       {busData.busModel}
                     </p>
-                    <p className="text-gray-600 mb-4">
+                    <p className="text-gray-600 text-sm md:text-base mb-4">
                       <span className="font-medium">Capacity:</span>{" "}
                       {busData.capacity}
                     </p>
                     {busData.routeId ? (
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 text-sm md:text-base">
                         <span className="font-medium">Assigned Route:</span>{" "}
                         {routeData ? routeData.routeName : "Loading..."}
                       </p>
                     ) : (
-                      <p className="text-orange-500 font-medium">
+                      <p className="text-orange-500 font-medium text-sm md:text-base">
                         No route assigned to this bus. Assign one below!
                       </p>
                     )}
@@ -660,9 +696,10 @@ const DriverDashboard = () => {
 
             {/* Create Route Section */}
             {showCreateRoute && (
-              <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-green-200">
-                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
-                  <Route className="mr-2 text-green-600" /> Create New Route{" "}
+              <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mb-8 border border-green-200">
+                <h3 className="text-xl md:text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <Route className="mr-2 text-green-600 h-5 w-5 md:h-6 md:w-6" />{" "}
+                  Create New Route
                   <button
                     onClick={() => setShowCreateRoute(false)}
                     className="ml-auto p-1 rounded-full hover:bg-gray-100 transition-colors"
@@ -678,9 +715,9 @@ const DriverDashboard = () => {
                     onChange={(e) =>
                       setNewRoute({ ...newRoute, routeName: e.target.value })
                     }
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                    className="w-full p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
                   />
-                  <label className="block text-gray-700 font-medium">
+                  <label className="block text-gray-700 font-medium text-sm md:text-base">
                     Stops:
                   </label>
                   {newRoute.stops.map((stop, index) => (
@@ -690,7 +727,7 @@ const DriverDashboard = () => {
                         placeholder={`Stop ${index + 1}`}
                         value={stop}
                         onChange={(e) => updateStopField(index, e.target.value)}
-                        className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                        className="flex-1 p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
                       />
                       {newRoute.stops.length > 1 && (
                         <button
@@ -704,9 +741,9 @@ const DriverDashboard = () => {
                   ))}
                   <button
                     onClick={addStopField}
-                    className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    className="flex items-center px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm md:text-base"
                   >
-                    <Plus className="mr-2" /> Add Stop
+                    <Plus className="mr-2 h-4 w-4 md:h-5 md:w-5" /> Add Stop
                   </button>
                   <button
                     onClick={createRoute}
@@ -733,9 +770,10 @@ const DriverDashboard = () => {
             )}
 
             {/* Your Created Routes */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Route className="mr-2 text-purple-600" /> Your Created Routes
+            <div className="bg-white p-4 md:p-6 rounded-lg shadow-md">
+              <h3 className="text-xl md:text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                <Route className="mr-2 text-purple-600 h-5 w-5 md:h-6 md:w-6" />{" "}
+                Your Created Routes
               </h3>
               {userRoutes.length > 0 ? (
                 <ul className="space-y-4">
@@ -745,18 +783,18 @@ const DriverDashboard = () => {
                       className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center"
                     >
                       <div>
-                        <p className="text-lg font-semibold text-gray-800">
+                        <p className="text-base md:text-lg font-semibold text-gray-800">
                           {route.routeName}
                         </p>
-                        <p className="text-sm text-gray-600 mb-2">
+                        <p className="text-xs md:text-sm text-gray-600 mb-2">
                           Stops: {route.stops.join(" - ")}
                         </p>
                       </div>
-                      <div className="flex space-x-2 mt-3 md:mt-0">
+                      <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 mt-3 md:mt-0 w-full md:w-auto">
                         <button
                           onClick={() => assignRouteToCurrentBus(route.id)}
                           disabled={busData && busData.routeId === route.id}
-                          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors duration-200 ${
+                          className={`w-full md:w-auto px-4 py-2 rounded-lg font-semibold text-sm transition-colors duration-200 ${
                             busData && busData.routeId === route.id
                               ? "bg-gray-300 text-gray-600 cursor-not-allowed"
                               : "bg-blue-500 text-white hover:bg-blue-600"
@@ -768,7 +806,7 @@ const DriverDashboard = () => {
                         </button>
                         <button
                           onClick={() => deleteRoute(route.id)}
-                          className="px-4 py-2 rounded-lg font-semibold text-sm bg-red-500 text-white hover:bg-red-600 transition-colors duration-200"
+                          className="w-full md:w-auto px-4 py-2 rounded-lg font-semibold text-sm bg-red-500 text-white hover:bg-red-600 transition-colors duration-200"
                         >
                           <Trash2 className="inline-block mr-1 h-4 w-4" />{" "}
                           Delete
@@ -778,7 +816,7 @@ const DriverDashboard = () => {
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm md:text-base">
                   You haven't created any routes yet. Create one above!
                 </p>
               )}
@@ -790,7 +828,7 @@ const DriverDashboard = () => {
           <RouteTracker
             busData={busData}
             routeData={routeData}
-            onRouteUpdate={handleLocationUpdate} // Changed from onLocationUpdate to onRouteUpdate for consistency
+            onRouteUpdate={handleLocationUpdate}
           />
         )}
       </main>

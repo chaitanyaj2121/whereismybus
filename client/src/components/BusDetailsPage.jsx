@@ -8,8 +8,9 @@ import {
   ArrowLeft,
   Loader2,
   Play,
-  Check,
-  Square,
+  CheckCircle2, // Changed from Check to CheckCircle2 for better visual
+  CircleDot, // Represents current stop better
+  Circle, // Represents pending stop better
 } from "lucide-react"
 
 // Import Firebase Firestore modules
@@ -80,13 +81,30 @@ const BusDetailsPage = () => {
     navigate(-1) // Go back to the previous page (SearchResultsPage)
   }
 
+  const sectionVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6 } },
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: { opacity: 1, x: 0, transition: { duration: 0.4 } },
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-700 text-lg">Loading live bus details...</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center bg-white p-8 rounded-2xl shadow-xl"
+        >
+          <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto mb-6" />
+          <p className="text-gray-700 text-xl font-medium">
+            Loading live bus details...
+          </p>
+        </motion.div>
       </div>
     )
   }
@@ -94,17 +112,25 @@ const BusDetailsPage = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg border border-red-300">
-          <p className="text-red-600 text-xl font-semibold mb-4">{error}</p>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center bg-white p-8 rounded-2xl shadow-xl border border-red-300"
+        >
+          <p className="text-red-600 text-2xl font-bold mb-4">{error}</p>
+          <p className="text-gray-600 mb-6">
+            Please try again or check your internet connection.
+          </p>
           <button
             onClick={handleBack}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-xl
-                       hover:bg-blue-700 transition duration-300 shadow-md"
+            className="inline-flex items-center px-8 py-3 bg-blue-600 text-white font-semibold rounded-full
+                         hover:bg-blue-700 transition duration-300 shadow-md transform hover:scale-105"
           >
-            <ArrowLeft className="h-5 w-5 mr-2" />
+            <ArrowLeft className="h-5 w-5 mr-3" />
             Back to Results
           </button>
-        </div>
+        </motion.div>
       </div>
     )
   }
@@ -112,154 +138,193 @@ const BusDetailsPage = () => {
   if (!sessionData || !busDetails) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="text-center bg-white p-8 rounded-xl shadow-lg border border-orange-300">
-          <p className="text-orange-600 text-xl font-semibold mb-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center bg-white p-8 rounded-2xl shadow-xl border border-orange-300"
+        >
+          <p className="text-orange-600 text-2xl font-bold mb-4">
             Bus session not found or has ended.
           </p>
           <p className="text-gray-600 mb-6">
-            This bus might not be active on its route right now.
+            This bus might not be active on its route right now, or the session
+            has concluded.
           </p>
           <button
             onClick={handleBack}
-            className="inline-flex items-center px-6 py-3 bg-blue-600 text-white font-medium rounded-xl
-                       hover:bg-blue-700 transition duration-300 shadow-md"
+            className="inline-flex items-center px-8 py-3 bg-blue-600 text-white font-semibold rounded-full
+                         hover:bg-blue-700 transition duration-300 shadow-md transform hover:scale-105"
           >
-            <ArrowLeft className="h-5 w-5 mr-2" />
+            <ArrowLeft className="h-5 w-5 mr-3" />
             Back to Results
           </button>
-        </div>
+        </motion.div>
       </div>
     )
   }
 
   const stops = sessionData.stops || []
   const currentStopIndex = sessionData.currentStopIndex || 0
-  const progress = sessionData.progress || {}
+  // const progress = sessionData.progress || {}; // 'progress' is not used directly in rendering currentStopIndex for timestamps, but if you need to display details per stop based on 'progress' field, you can use it.
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6 lg:p-10 flex flex-col"
+      initial="hidden"
+      animate="visible"
+      className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 pb-12 sm:p-6 lg:p-10 flex flex-col items-center relative"
     >
+      {/* Back Button - Positioned top-left */}
+      <motion.button
+        onClick={handleBack}
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 inline-flex items-center px-4 py-2 bg-white text-gray-800 rounded-full hover:bg-gray-100 transition-colors duration-200 shadow-md text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        variants={itemVariants}
+      >
+        <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-2" /> Back
+      </motion.button>
+
       {/* Header */}
-      <header className="text-center mb-8 lg:mb-12">
-        <button
-          onClick={handleBack}
-          className="absolute top-6 left-6 inline-flex items-center px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors duration-200 shadow-sm text-sm"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" /> Back
-        </button>
+      <motion.header
+        className="text-center mt-12 mb-8 sm:mb-10 lg:mb-12 max-w-lg w-full"
+        variants={sectionVariants}
+      >
         <div className="flex justify-center mb-4">
-          <Bus className="h-12 w-12 text-blue-600" />
+          <Bus className="h-14 w-14 text-blue-600" />
         </div>
-        <h1 className="text-3xl lg:text-4xl font-bold text-gray-800 mb-2">
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-800 mb-2">
           Live Bus Tracking
         </h1>
-        <p className="text-lg lg:text-xl font-light text-gray-600">
-          Route: <span className="font-semibold">{sessionData.routeName}</span>
+        <p className="text-lg sm:text-xl font-medium text-gray-700">
+          Route: <span className="font-bold">{sessionData.routeName}</span>
         </p>
-        <p className="text-md text-gray-500">
+        <p className="text-md sm:text-lg text-gray-600 mt-1">
           Bus: <span className="font-semibold">{busDetails.busNumber}</span> (
           {busDetails.busModel})
         </p>
-      </header>
+      </motion.header>
 
-      {/* Live Status Section */}
-      <main className="flex-grow flex items-start justify-center">
-        <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6 lg:p-8 backdrop-blur-sm bg-opacity-80">
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-              <MapPin className="h-6 w-6 mr-2 text-blue-600" /> Current Status
-            </h2>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-lg font-semibold text-blue-800 flex items-center">
-                <MapPin className="h-5 w-5 mr-2 text-blue-600" />
-                Current Stop: {stops[currentStopIndex] || "N/A"}
+      {/* Main Content */}
+      <motion.main
+        className="w-full max-w-3xl space-y-6 sm:space-y-8"
+        variants={sectionVariants}
+      >
+        {/* Live Status Section */}
+        <motion.div
+          className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 backdrop-blur-sm bg-opacity-90 border border-blue-100"
+          variants={itemVariants}
+        >
+          <h2 className="text-2xl sm:text-2xl font-bold text-gray-800 mb-5 flex items-center">
+            <MapPin className="h-7 w-7 mr-3 text-blue-600" /> Current Status
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-lg">
+            <p className="font-semibold text-blue-800 flex items-center">
+              <CircleDot className="h-5 w-5 mr-2 text-blue-500" />
+              Current Stop: {stops[currentStopIndex] || "N/A"}
+            </p>
+            {currentStopIndex < stops.length - 1 && (
+              <p className="text-blue-700 flex items-center">
+                <MapPin className="h-5 w-5 mr-2 text-blue-400" />
+                Next Stop: {stops[currentStopIndex + 1]}
               </p>
-              {currentStopIndex < stops.length - 1 && (
-                <p className="text-md text-blue-700 mt-1 flex items-center">
-                  <MapPin className="h-4 w-4 mr-2 text-blue-500" />
-                  Next Stop: {stops[currentStopIndex + 1]}
-                </p>
-              )}
-              <p className="text-md text-blue-700 mt-1 flex items-center">
-                <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                Started At:{" "}
-                {sessionData.startTime?.toDate().toLocaleTimeString() || "N/A"}
-              </p>
-              <p className="text-md text-blue-700 mt-1 flex items-center">
-                <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                Last Updated:{" "}
-                {sessionData.progress?.[currentStopIndex]?.startedAt
-                  ?.toDate()
-                  .toLocaleTimeString() || "N/A"}
-              </p>
-            </div>
+            )}
+            <p className="text-blue-700 flex items-center">
+              <Play className="h-5 w-5 mr-2 text-blue-400" />
+              Started At:{" "}
+              {sessionData.startTime
+                ?.toDate()
+                .toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }) || "N/A"}
+            </p>
+            <p className="text-blue-700 flex items-center">
+              <Clock className="h-5 w-5 mr-2 text-blue-400" />
+              Last Updated:{" "}
+              {sessionData.progress?.[currentStopIndex]?.startedAt
+                ?.toDate()
+                .toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }) || "N/A"}
+            </p>
           </div>
+        </motion.div>
 
-          {/* Route Progress */}
-          <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
-              <Play className="h-6 w-6 mr-2 text-green-600" /> Route Progress
-            </h2>
-            <div className="space-y-3">
-              {stops.map((stop, index) => (
-                <div
-                  key={index}
-                  className={`flex items-center space-x-3 p-3 rounded-lg border ${
+        {/* Route Progress */}
+        <motion.div
+          className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 backdrop-blur-sm bg-opacity-90 border border-green-100"
+          variants={itemVariants}
+        >
+          <h2 className="text-2xl sm:text-2xl font-bold text-gray-800 mb-5 flex items-center">
+            <Bus className="h-7 w-7 mr-3 text-green-600" /> Route Progress
+          </h2>
+          <div className="space-y-4">
+            {stops.map((stop, index) => (
+              <motion.div
+                key={index}
+                className={`flex items-center space-x-3 p-4 rounded-xl transition-all duration-300
+                  ${
                     index < currentStopIndex
-                      ? "bg-green-50 border-green-200"
+                      ? "bg-green-50 border border-green-200"
                       : index === currentStopIndex
-                      ? "bg-blue-50 border-blue-200"
-                      : "bg-gray-50 border-gray-200"
+                      ? "bg-blue-50 border border-blue-200 shadow-md"
+                      : "bg-gray-50 border border-gray-200"
                   }`}
-                >
-                  <div
-                    className={`h-4 w-4 rounded-full ${
+                variants={itemVariants}
+              >
+                <div
+                  className={`flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full
+                    ${
                       index < currentStopIndex
-                        ? "bg-green-500"
+                        ? "bg-green-500 text-white"
                         : index === currentStopIndex
-                        ? "bg-blue-500"
-                        : "bg-gray-300"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-300 text-gray-600"
                     }`}
-                  ></div>
-                  <span
-                    className={`font-medium flex-1 ${
+                >
+                  {index < currentStopIndex ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : index === currentStopIndex ? (
+                    <CircleDot className="h-4 w-4" />
+                  ) : (
+                    <Circle className="h-4 w-4" />
+                  )}
+                </div>
+                <span
+                  className={`font-medium flex-1 text-lg
+                    ${
                       index < currentStopIndex
                         ? "text-green-900"
                         : index === currentStopIndex
-                        ? "text-blue-900"
-                        : "text-gray-600"
+                        ? "text-blue-900 font-semibold"
+                        : "text-gray-700"
                     }`}
-                  >
-                    {stop}
-                  </span>
-                  {index < currentStopIndex && (
-                    <div className="flex items-center text-xs text-green-600">
-                      <Check className="h-4 w-4 mr-1" /> Completed
-                    </div>
-                  )}
-                  {index === currentStopIndex && (
-                    <div className="flex items-center text-xs text-blue-600">
-                      <Clock className="h-4 w-4 mr-1" /> Current
-                    </div>
-                  )}
-                  {index > currentStopIndex && (
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Square className="h-4 w-4 mr-1" /> Pending
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                >
+                  {stop}
+                </span>
+                {index < currentStopIndex && (
+                  <div className="flex items-center text-sm text-green-600 font-medium">
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Completed
+                  </div>
+                )}
+                {index === currentStopIndex && (
+                  <div className="flex items-center text-sm text-blue-600 font-medium">
+                    <Clock className="h-4 w-4 mr-1" /> Current Location
+                  </div>
+                )}
+                {index > currentStopIndex && (
+                  <div className="flex items-center text-sm text-gray-500 font-medium">
+                    <Circle className="h-4 w-4 mr-1" /> Upcoming
+                  </div>
+                )}
+              </motion.div>
+            ))}
           </div>
-        </div>
-      </main>
+        </motion.div>
+      </motion.main>
 
       {/* Footer */}
-      <footer className="text-center text-gray-500 text-sm mt-8">
+      <footer className="text-center text-gray-500 text-sm mt-10 w-full">
         <p>Built for Bharat | Powered by Students</p>
       </footer>
 

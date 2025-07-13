@@ -1,21 +1,149 @@
-import { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Bus } from "lucide-react"
+import { Bus, Search, MapPin } from "lucide-react" // Added MapPin for suggestions
+
+// Import Firebase Firestore modules
+import { collection, getDocs } from "firebase/firestore"
+import { db } from "../firebase/config" // Assuming firebase/config exports 'db'
 
 const PassengerHomePage = () => {
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
+  const [allStops, setAllStops] = useState([]) // To store all unique stops for suggestions
+  const [filteredFromSuggestions, setFilteredFromSuggestions] = useState([])
+  const [filteredToSuggestions, setFilteredToSuggestions] = useState([])
+  const [showFromSuggestions, setShowFromSuggestions] = useState(false)
+  const [showToSuggestions, setShowToSuggestions] = useState(false)
+  const [searchResult, setSearchResult] = useState("") // "Bus Found" or "No Bus Found"
+  const [foundBusTime, setFoundBusTime] = useState("") // Static time for now
+  const [foundRouteName, setFoundRouteName] = useState("") // Name of the found route
+  const [loadingSearch, setLoadingSearch] = useState(false) // Loading state for search
   const navigate = useNavigate()
 
-  const handleSearch = (e) => {
-    e.preventDefault()
-    if (from && to) {
-      navigate(
-        `/searchResults?from=${encodeURIComponent(
-          from
-        )}&to=${encodeURIComponent(to)}`
+  // Fetch all stops from Firestore routes for suggestions
+  useEffect(() => {
+    const fetchAllStops = async () => {
+      try {
+        const routesRef = collection(db, "routes")
+        const querySnapshot = await getDocs(routesRef)
+        const uniqueStops = new Set()
+
+        querySnapshot.forEach((doc) => {
+          const route = doc.data()
+          if (route.stops && Array.isArray(route.stops)) {
+            route.stops.forEach((stop) => {
+              if (typeof stop === "string" && stop.trim() !== "") {
+                uniqueStops.add(stop.trim().toLowerCase()) // Store in lowercase for case-insensitive matching
+              }
+            })
+          }
+        })
+        setAllStops(Array.from(uniqueStops))
+      } catch (error) {
+        console.error("Error fetching all stops:", error)
+        // Optionally, show an error message to the user
+      }
+    }
+
+    fetchAllStops()
+  }, [])
+
+  // Handle input changes for 'From' field and filter suggestions
+  const handleFromChange = (e) => {
+    const value = e.target.value
+    setFrom(value)
+    if (value.length > 0) {
+      const suggestions = allStops.filter((stop) =>
+        stop.startsWith(value.toLowerCase())
       )
+      setFilteredFromSuggestions(suggestions)
+      setShowFromSuggestions(true)
+    } else {
+      setShowFromSuggestions(false)
+    }
+    setSearchResult("") // Clear previous search result on input change
+    setFoundBusTime("")
+    setFoundRouteName("")
+  }
+
+  // Handle input changes for 'To' field and filter suggestions
+  const handleToChange = (e) => {
+    const value = e.target.value
+    setTo(value)
+    if (value.length > 0) {
+      const suggestions = allStops.filter((stop) =>
+        stop.startsWith(value.toLowerCase())
+      )
+      setFilteredToSuggestions(suggestions)
+      setShowToSuggestions(true)
+    } else {
+      setShowToSuggestions(false)
+    }
+    setSearchResult("") // Clear previous search result on input change
+    setFoundBusTime("")
+    setFoundRouteName("")
+  }
+
+  // Select a suggestion for 'From'
+  const selectFromSuggestion = (suggestion) => {
+    setFrom(suggestion)
+    setShowFromSuggestions(false)
+  }
+
+  // Select a suggestion for 'To'
+  const selectToSuggestion = (suggestion) => {
+    setTo(suggestion)
+    setShowToSuggestions(false)
+  }
+
+  // Handle search logic
+  const handleSearch = async (e) => {
+    e.preventDefault()
+    setLoadingSearch(true)
+    setSearchResult("")
+    setFoundBusTime("")
+    setFoundRouteName("")
+
+    if (!from.trim() || !to.trim()) {
+      alert("Please enter both source and destination.")
+      setLoadingSearch(false)
+      return
+    }
+
+    try {
+      const routesRef = collection(db, "routes")
+      const querySnapshot = await getDocs(routesRef)
+      let busFound = false
+
+      const searchFrom = from.trim().toLowerCase()
+      const searchTo = to.trim().toLowerCase()
+
+      for (const doc of querySnapshot.docs) {
+        const route = doc.data()
+        if (route.stops && Array.isArray(route.stops)) {
+          const routeStopsLower = route.stops.map((stop) => stop.toLowerCase())
+          const fromIndex = routeStopsLower.indexOf(searchFrom)
+          const toIndex = routeStopsLower.indexOf(searchTo)
+
+          if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
+            busFound = true
+            setSearchResult("Bus Found!")
+            setFoundBusTime("12:00 PM") // Static time as requested
+            setFoundRouteName(route.routeName)
+            break // Found a bus, no need to check other routes
+          }
+        }
+      }
+
+      if (!busFound) {
+        setSearchResult("No Bus Found for this route.")
+      }
+    } catch (error) {
+      console.error("Error during bus search:", error)
+      setSearchResult("Error searching for buses. Please try again.")
+    } finally {
+      setLoadingSearch(false)
     }
   }
 
@@ -44,7 +172,7 @@ const PassengerHomePage = () => {
         <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6 lg:p-8 backdrop-blur-sm bg-opacity-80">
           <form onSubmit={handleSearch} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="relative">
                 <label
                   htmlFor="from"
                   className="block text-sm font-medium text-gray-700 mb-1"
@@ -55,13 +183,32 @@ const PassengerHomePage = () => {
                   type="text"
                   id="from"
                   value={from}
-                  onChange={(e) => setFrom(e.target.value)}
+                  onChange={handleFromChange}
+                  onFocus={() => setShowFromSuggestions(true)}
+                  onBlur={() =>
+                    setTimeout(() => setShowFromSuggestions(false), 100)
+                  } // Delay hide to allow click
                   placeholder="Enter starting point"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                   required
+                  autoComplete="off" // Disable browser autocomplete
                 />
+                {showFromSuggestions && filteredFromSuggestions.length > 0 && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                    {filteredFromSuggestions.map((suggestion, index) => (
+                      <li
+                        key={index}
+                        onMouseDown={() => selectFromSuggestion(suggestion)} // Use onMouseDown to trigger before onBlur
+                        className="p-3 hover:bg-blue-100 cursor-pointer flex items-center text-gray-800"
+                      >
+                        <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                        {suggestion}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <div>
+              <div className="relative">
                 <label
                   htmlFor="to"
                   className="block text-sm font-medium text-gray-700 mb-1"
@@ -72,20 +219,72 @@ const PassengerHomePage = () => {
                   type="text"
                   id="to"
                   value={to}
-                  onChange={(e) => setTo(e.target.value)}
+                  onChange={handleToChange}
+                  onFocus={() => setShowToSuggestions(true)}
+                  onBlur={() =>
+                    setTimeout(() => setShowToSuggestions(false), 100)
+                  } // Delay hide to allow click
                   placeholder="Enter destination"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                   required
+                  autoComplete="off" // Disable browser autocomplete
                 />
+                {showToSuggestions && filteredToSuggestions.length > 0 && (
+                  <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                    {filteredToSuggestions.map((suggestion, index) => (
+                      <li
+                        key={index}
+                        onMouseDown={() => selectToSuggestion(suggestion)} // Use onMouseDown to trigger before onBlur
+                        className="p-3 hover:bg-blue-100 cursor-pointer flex items-center text-gray-800"
+                      >
+                        <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                        {suggestion}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-xl transition duration-300 transform hover:scale-[1.01] shadow-md"
+              disabled={loadingSearch}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-xl transition duration-300 transform hover:scale-[1.01] shadow-md flex items-center justify-center space-x-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Find Buses
+              {loadingSearch ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Searching...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="h-5 w-5" />
+                  <span>Find Buses</span>
+                </>
+              )}
             </button>
           </form>
+
+          {/* Search Result Display */}
+          {searchResult && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className={`mt-8 p-4 rounded-lg text-center ${
+                searchResult.includes("Found")
+                  ? "bg-green-100 text-green-800 border border-green-200"
+                  : "bg-red-100 text-red-800 border border-red-200"
+              }`}
+            >
+              <p className="font-semibold text-lg mb-1">{searchResult}</p>
+              {foundRouteName && (
+                <p className="text-md">Route: {foundRouteName}</p>
+              )}
+              {foundBusTime && (
+                <p className="text-md">Estimated Departure: {foundBusTime}</p>
+              )}
+            </motion.div>
+          )}
         </div>
       </main>
 

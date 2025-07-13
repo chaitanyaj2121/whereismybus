@@ -42,7 +42,6 @@ const DriverDashboard = () => {
   const [error, setError] = useState("")
   const [showCreateRoute, setShowCreateRoute] = useState(false)
   const [showBusSetup, setShowBusSetup] = useState(false)
-  // const [showRouteTracker, setShowRouteTracker] = useState(false)
   const [newRoute, setNewRoute] = useState({
     routeName: "",
     stops: [""],
@@ -55,7 +54,6 @@ const DriverDashboard = () => {
   const [userRoutes, setUserRoutes] = useState([])
   const [creatingRoute, setCreatingRoute] = useState(false)
   const [creatingBus, setCreatingBus] = useState(false)
-  const [markingStop, setMarkingStop] = useState(null)
   const [activeView, setActiveView] = useState("dashboard") // 'dashboard' or 'tracker'
 
   useEffect(() => {
@@ -236,46 +234,6 @@ const DriverDashboard = () => {
       alert("Failed to create bus")
     } finally {
       setCreatingBus(false)
-    }
-  }
-
-  const markStop = async (stopName) => {
-    if (!busData || !user) return
-
-    try {
-      setMarkingStop(stopName)
-
-      // Update bus document in Firestore
-      const busRef = doc(db, "buses", busData.id)
-      await updateDoc(busRef, {
-        currentStop: stopName,
-        lastUpdated: serverTimestamp(),
-        arrivedAt: serverTimestamp(),
-      })
-
-      // Update local state
-      setBusData((prev) => ({
-        ...prev,
-        currentStop: stopName,
-        lastUpdated: { seconds: Date.now() / 1000 },
-        arrivedAt: { seconds: Date.now() / 1000 },
-      }))
-
-      // Create arrival record
-      await addDoc(collection(db, "arrivals"), {
-        busId: busData.id,
-        routeId: busData.routeId,
-        stopName: stopName,
-        driverId: user.uid,
-        timestamp: serverTimestamp(),
-      })
-
-      alert(`Successfully marked arrival at ${stopName}`)
-    } catch (error) {
-      console.error("Error updating stop:", error)
-      alert("Failed to update stop")
-    } finally {
-      setMarkingStop(null)
     }
   }
 
@@ -462,34 +420,38 @@ const DriverDashboard = () => {
                 if (user) {
                   fetchBusData(user.uid)
                   fetchUserRoutes(user.uid)
+                } else {
+                  handleLoginBtn()
                 }
               }}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 mr-2"
+              className="w-full px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              Retry
+              {user ? "Retry" : "Go to Login"}
             </button>
-            <button
-              onClick={handleLogout}
-              className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-            >
-              Logout
-            </button>
+            {user && (
+              <button
+                onClick={handleLogout}
+                className="w-full px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
       </div>
     )
   }
 
-  if (error === "No user logged in.") {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-            Please log in to access the driver dashboard
-          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">
+            Please log in to access the driver dashboard.
+          </h2>
           <button
             onClick={handleLoginBtn}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+            className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           >
             Go to Login
           </button>
@@ -498,452 +460,340 @@ const DriverDashboard = () => {
     )
   }
 
-  // Render RouteTracker component if active
-  if (activeView === "tracker") {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center py-4">
-              <div className="flex items-center">
-                <Bus className="w-8 h-8 text-blue-600 mr-3" />
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Route Tracker
-                </h1>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setActiveView("dashboard")}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Dashboard
-                </button>
-                <span className="text-sm text-gray-600">
-                  Welcome, {user?.email}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* RouteTracker Component */}
-        <RouteTracker
-          busData={busData}
-          routeData={routeData}
-          onLocationUpdate={handleLocationUpdate}
-          onStopUpdate={markStop}
-        />
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <Bus className="w-8 h-8 text-blue-600 mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">
-                Driver Dashboard
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Route Tracker Button - Only show if bus and route are set up */}
-              {busData && routeData && (
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <aside className="w-64 bg-gray-800 text-white flex flex-col p-4 shadow-lg">
+        <div className="flex items-center mb-8">
+          <Bus className="h-8 w-8 mr-2 text-blue-400" />
+          <h1 className="text-2xl font-bold">Driver Panel</h1>
+        </div>
+        <nav className="flex-1">
+          <ul className="space-y-2">
+            <li>
+              <button
+                onClick={() => setActiveView("dashboard")}
+                className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
+                  activeView === "dashboard"
+                    ? "bg-blue-700 text-white"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <Map className="mr-3" />
+                Dashboard
+              </button>
+            </li>
+            {busData && busData.routeId && (
+              <li>
                 <button
                   onClick={() => setActiveView("tracker")}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                  className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
+                    activeView === "tracker"
+                      ? "bg-blue-700 text-white"
+                      : "hover:bg-gray-700 text-gray-300"
+                  }`}
                 >
-                  <Map className="w-4 h-4 mr-2" />
-                  Start Tracking
+                  <Navigation className="mr-3" />
+                  Route Tracker
                 </button>
-              )}
-              <span className="text-sm text-gray-600">
-                Welcome, {user?.email}
-              </span>
+              </li>
+            )}
+            <li>
               <button
-                onClick={handleLogout}
-                className="flex items-center bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                onClick={() => setShowCreateRoute(!showCreateRoute)}
+                className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
+                  showCreateRoute
+                    ? "bg-blue-700 text-white"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
+                <Route className="mr-3" />
+                Create Route
               </button>
+            </li>
+            <li>
+              <button
+                onClick={() => setShowBusSetup(!showBusSetup)}
+                className={`flex items-center w-full p-3 rounded-lg text-left transition-colors duration-200 ${
+                  showBusSetup
+                    ? "bg-blue-700 text-white"
+                    : "hover:bg-gray-700 text-gray-300"
+                }`}
+              >
+                <Settings className="mr-3" />
+                Bus Setup
+              </button>
+            </li>
+          </ul>
+        </nav>
+        <div className="mt-auto">
+          <button
+            onClick={handleLogout}
+            className="flex items-center w-full p-3 rounded-lg text-left text-red-400 hover:bg-gray-700 transition-colors duration-200"
+          >
+            <LogOut className="mr-3" />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        {/* User Info */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-8 flex justify-between items-center">
+          <div>
+            <h2 className="text-3xl font-semibold text-gray-800 mb-1">
+              Welcome, Driver!
+            </h2>
+            <p className="text-gray-600">{user ? user.email : "Guest User"}</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center text-gray-700">
+              <Clock className="mr-2" />
+              <p>{new Date().toLocaleTimeString()}</p>
+            </div>
+            <div className="flex items-center text-gray-700">
+              <Activity className="mr-2" />
+              <p>Online</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Status Banner */}
-        {busData && routeData && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Activity className="w-5 h-5 text-green-600 mr-2" />
-                <span className="text-green-800 font-medium">
-                  Bus {busData.busNumber} is ready for route tracking on "
-                  {routeData.routeName}"
-                </span>
-              </div>
-              <button
-                onClick={() => setActiveView("tracker")}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
-              >
-                <Map className="w-4 h-4 mr-2" />
-                Start Tracking
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Current Bus & Route Section */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                <Navigation className="w-5 h-5 mr-2" />
-                My Bus & Route
-              </h2>
-              {!busData && (
-                <button
-                  onClick={() => setShowBusSetup(!showBusSetup)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Setup Bus
-                </button>
-              )}
-            </div>
-
-            {/* Bus Setup Form */}
-            {showBusSetup && !busData && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-4">
-                  Setup Your Bus
+        {/* Dynamic Content Area */}
+        {activeView === "dashboard" && (
+          <>
+            {/* Bus Setup Section */}
+            {showBusSetup && (
+              <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-blue-200">
+                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <Bus className="mr-2 text-blue-600" /> Bus Setup{" "}
+                  <button
+                    onClick={() => setShowBusSetup(false)}
+                    className="ml-auto p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
                 </h3>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bus Number
-                    </label>
+                {!busData ? (
+                  <div className="space-y-4">
+                    <p className="text-gray-600">
+                      You don't have a bus registered yet. Please create one.
+                    </p>
                     <input
                       type="text"
+                      placeholder="Bus Number (e.g., KA01AB1234)"
                       value={newBus.busNumber}
                       onChange={(e) =>
-                        setNewBus((prev) => ({
-                          ...prev,
-                          busNumber: e.target.value,
-                        }))
+                        setNewBus({ ...newBus, busNumber: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., MH-12-AB-1234"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bus Model
-                    </label>
                     <input
                       type="text"
+                      placeholder="Bus Model (e.g., Tata Ultra)"
                       value={newBus.busModel}
                       onChange={(e) =>
-                        setNewBus((prev) => ({
-                          ...prev,
-                          busModel: e.target.value,
-                        }))
+                        setNewBus({ ...newBus, busModel: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., Tata Starbus"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Capacity (seats)
-                    </label>
                     <input
                       type="number"
+                      placeholder="Capacity (e.g., 50)"
                       value={newBus.capacity}
                       onChange={(e) =>
-                        setNewBus((prev) => ({
-                          ...prev,
-                          capacity: e.target.value,
-                        }))
+                        setNewBus({ ...newBus, capacity: e.target.value })
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="e.g., 50"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                     />
-                  </div>
-                  <div className="flex space-x-2">
                     <button
                       onClick={createBus}
                       disabled={creatingBus}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
+                      className={`w-full p-3 rounded-lg text-white font-semibold flex items-center justify-center transition-colors duration-200 ${
                         creatingBus
-                          ? "bg-gray-400 text-white cursor-not-allowed"
-                          : "bg-green-600 text-white hover:bg-green-700"
+                          ? "bg-blue-400 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700"
                       }`}
                     >
-                      <Save className="w-4 h-4 mr-2" />
-                      {creatingBus ? "Creating..." : "Create Bus"}
+                      {creatingBus ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>{" "}
+                          Creating Bus...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2" /> Create Bus
+                        </>
+                      )}
                     </button>
-                    <button
-                      onClick={() => setShowBusSetup(false)}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {busData ? (
-              <div className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h3 className="font-medium text-blue-900">
-                    Bus: {busData.busNumber}
-                  </h3>
-                  <p className="text-sm text-blue-700">
-                    Model: {busData.busModel}
-                  </p>
-                  <p className="text-sm text-blue-700">
-                    Capacity: {busData.capacity} seats
-                  </p>
-                  <p className="text-sm text-blue-700">
-                    Current Stop: {busData.currentStop || "Not set"}
-                  </p>
-                  {busData.lastUpdated && (
-                    <p className="text-sm text-blue-700">
-                      Last Updated:{" "}
-                      {busData.lastUpdated.seconds
-                        ? new Date(
-                            busData.lastUpdated.seconds * 1000
-                          ).toLocaleString()
-                        : "Never"}
-                    </p>
-                  )}
-                </div>
-
-                {routeData ? (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-3">
-                      Route: {routeData.routeName}
-                    </h4>
-                    <div className="space-y-2">
-                      {routeData.stops?.map((stop, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                        >
-                          <div className="flex items-center">
-                            <MapPin className="w-4 h-4 text-gray-500 mr-2" />
-                            <span className="text-gray-700">{stop}</span>
-                            {busData.currentStop === stop && (
-                              <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                                Current
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => markStop(stop)}
-                            disabled={markingStop === stop}
-                            className={`px-3 py-1 rounded text-sm transition-colors ${
-                              markingStop === stop
-                                ? "bg-gray-400 text-white cursor-not-allowed"
-                                : "bg-green-600 text-white hover:bg-green-700"
-                            }`}
-                          >
-                            {markingStop === stop ? "Marking..." : "Arrived"}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 ) : (
-                  <div className="text-center py-4">
-                    <p className="text-gray-500 mb-4">
-                      No route assigned to your bus
+                  <div>
+                    <h4 className="text-xl font-semibold text-gray-700 mb-2">
+                      Your Registered Bus:
+                    </h4>
+                    <p className="text-gray-600">
+                      <span className="font-medium">Bus Number:</span>{" "}
+                      {busData.busNumber}
                     </p>
-                    <p className="text-sm text-gray-400">
-                      Create a route below and assign it to your bus
+                    <p className="text-gray-600">
+                      <span className="font-medium">Bus Model:</span>{" "}
+                      {busData.busModel}
                     </p>
+                    <p className="text-gray-600 mb-4">
+                      <span className="font-medium">Capacity:</span>{" "}
+                      {busData.capacity}
+                    </p>
+                    {busData.routeId ? (
+                      <p className="text-gray-600">
+                        <span className="font-medium">Assigned Route:</span>{" "}
+                        {routeData ? routeData.routeName : "Loading..."}
+                      </p>
+                    ) : (
+                      <p className="text-orange-500 font-medium">
+                        No route assigned to this bus. Assign one below!
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="text-center py-8">
-                <Bus className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No bus setup yet</p>
-                <p className="text-sm text-gray-400">
-                  Click "Setup Bus" to create your bus
-                </p>
-              </div>
             )}
-          </div>
 
-          {/* Route Management Section */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center">
-                <Route className="w-5 h-5 mr-2" />
-                Route Management
-              </h2>
-              <button
-                onClick={() => setShowCreateRoute(!showCreateRoute)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Route
-              </button>
-            </div>
-
-            {/* Create Route Form */}
+            {/* Create Route Section */}
             {showCreateRoute && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-medium text-gray-900 mb-4">
-                  Create New Route
+              <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-green-200">
+                <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                  <Route className="mr-2 text-green-600" /> Create New Route{" "}
+                  <button
+                    onClick={() => setShowCreateRoute(false)}
+                    className="ml-auto p-1 rounded-full hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="h-5 w-5 text-gray-500" />
+                  </button>
                 </h3>
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Route Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newRoute.routeName}
-                      onChange={(e) =>
-                        setNewRoute((prev) => ({
-                          ...prev,
-                          routeName: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter route name"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Stops
-                    </label>
-                    {newRoute.stops.map((stop, index) => (
-                      <div key={index} className="flex items-center mb-2">
-                        <input
-                          type="text"
-                          value={stop}
-                          onChange={(e) =>
-                            updateStopField(index, e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder={`Stop ${index + 1}`}
-                        />
-                        {newRoute.stops.length > 1 && (
-                          <button
-                            onClick={() => removeStopField(index)}
-                            className="ml-2 text-red-600 hover:text-red-700"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button
-                      onClick={addStopField}
-                      className="flex items-center text-blue-600 hover:text-blue-700 text-sm mt-2"
-                    >
-                      <Plus className="w-4 h-4 mr-1" /> Add Stop
-                    </button>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={createRoute}
-                      disabled={creatingRoute}
-                      className={`px-4 py-2 rounded-lg transition-colors flex items-center ${
-                        creatingRoute
-                          ? "bg-gray-400 text-white cursor-not-allowed"
-                          : "bg-green-600 text-white hover:bg-green-700"
-                      }`}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {creatingRoute ? "Creating..." : "Create Route"}
-                    </button>
-                    <button
-                      onClick={() => setShowCreateRoute(false)}
-                      className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
+                  <input
+                    type="text"
+                    placeholder="Route Name (e.g., Downtown Express)"
+                    value={newRoute.routeName}
+                    onChange={(e) =>
+                      setNewRoute({ ...newRoute, routeName: e.target.value })
+                    }
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                  />
+                  <label className="block text-gray-700 font-medium">
+                    Stops:
+                  </label>
+                  {newRoute.stops.map((stop, index) => (
+                    <div key={index} className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        placeholder={`Stop ${index + 1}`}
+                        value={stop}
+                        onChange={(e) => updateStopField(index, e.target.value)}
+                        className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                      />
+                      {newRoute.stops.length > 1 && (
+                        <button
+                          onClick={() => removeStopField(index)}
+                          className="p-2 rounded-full text-red-500 hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={addStopField}
+                    className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    <Plus className="mr-2" /> Add Stop
+                  </button>
+                  <button
+                    onClick={createRoute}
+                    disabled={creatingRoute}
+                    className={`w-full p-3 rounded-lg text-white font-semibold flex items-center justify-center transition-colors duration-200 ${
+                      creatingRoute
+                        ? "bg-green-400 cursor-not-allowed"
+                        : "bg-green-600 hover:bg-green-700"
+                    }`}
+                  >
+                    {creatingRoute ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>{" "}
+                        Creating Route...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2" /> Save Route
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             )}
-
-            {/* List of User Routes */}
-            <h3 className="font-medium text-gray-900 mb-3">Your Routes</h3>
-            {userRoutes.length > 0 ? (
-              <ul className="space-y-4">
-                {userRoutes.map((route) => (
-                  <li
-                    key={route.id}
-                    className="bg-gray-50 rounded-lg p-4 shadow-sm flex items-start justify-between"
-                  >
-                    <div>
-                      <p className="font-semibold text-gray-800 mb-1">
-                        {route.routeName}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Stops: {route.stops.join(" -> ")}
-                      </p>
-                      {busData && busData.routeId === route.id && (
-                        <span className="mt-1 inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                          Currently Assigned
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex space-x-2 mt-1">
-                      {busData && busData.routeId !== route.id && (
+            {/* Your Created Routes */}
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h3 className="text-2xl font-semibold text-gray-800 mb-4 flex items-center">
+                <Route className="mr-2 text-purple-600" /> Your Created Routes
+              </h3>
+              {userRoutes.length > 0 ? (
+                <ul className="space-y-4">
+                  {userRoutes.map((route) => (
+                    <li
+                      key={route.id}
+                      className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center"
+                    >
+                      <div>
+                        <p className="text-lg font-semibold text-gray-800">
+                          {route.routeName}
+                        </p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          Stops: {route.stops.join(" - ")}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2 mt-3 md:mt-0">
                         <button
                           onClick={() => assignRouteToCurrentBus(route.id)}
-                          className="bg-blue-500 text-white px-3 py-1 rounded-md text-sm hover:bg-blue-600 transition-colors flex items-center"
-                          title="Assign to my bus"
+                          disabled={busData && busData.routeId === route.id}
+                          className={`px-4 py-2 rounded-lg font-semibold text-sm transition-colors duration-200 ${
+                            busData && busData.routeId === route.id
+                              ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                              : "bg-blue-500 text-white hover:bg-blue-600"
+                          }`}
                         >
-                          <Bus className="w-4 h-4 mr-1" /> Assign
+                          {busData && busData.routeId === route.id
+                            ? "Assigned"
+                            : "Assign to Bus"}
                         </button>
-                      )}
-                      <button
-                        onClick={() => deleteRoute(route.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 transition-colors flex items-center"
-                        title="Delete route"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-center py-8">
-                <Route className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No routes created yet</p>
-                <p className="text-sm text-gray-400">
-                  Click "Create Route" to add your first route
+                        <button
+                          onClick={() => deleteRoute(route.id)}
+                          className="px-4 py-2 rounded-lg font-semibold text-sm bg-red-500 text-white hover:bg-red-600 transition-colors duration-200"
+                        >
+                          <Trash2 className="inline-block mr-1 h-4 w-4" />{" "}
+                          Delete
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-600">
+                  You haven't created any routes yet. Create one above!
                 </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {activeView === "tracker" && busData && busData.routeId && (
+          <RouteTracker
+            busData={busData}
+            routeData={routeData}
+            onLocationUpdate={handleLocationUpdate}
+          />
+        )}
+      </main>
     </div>
   )
 }

@@ -171,16 +171,8 @@ const RouteTracker = ({ busData, routeData, onRouteUpdate }) => {
 
       await updateDoc(busRef, busUpdateData)
 
-      // Create arrival record
-      await addDoc(collection(db, "arrivals"), {
-        busId: busData.id,
-        routeId: routeData.id,
-        stopName: routeData.stops[currentStopIndex],
-        driverId: auth.currentUser.uid,
-        sessionId: activeSession.id,
-        timestamp: serverTimestamp(),
-        stopIndex: currentStopIndex,
-      })
+      // REMOVED: Creation of arrival record in arrivals collection
+      // The arrival information is now only stored in the session progress
 
       // Call parent update function if provided
       if (onRouteUpdate) {

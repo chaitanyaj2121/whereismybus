@@ -10,6 +10,7 @@ import DriverDashboard from "./components/DriverDashboard"
 import "./index.css"
 import HomePage from "./components/HomePage"
 import SearchResultsPage from "./components/SearchResultPage"
+import BusDetailsPage from "./components/BusDetailsPage"
 function App() {
   return (
     <Router>
@@ -19,6 +20,7 @@ function App() {
           <Route path="/driver-dashboard" element={<DriverDashboard />} />
           <Route path="/logindriver" element={<Navigate to="/login" />} />
           <Route path="/" element={<HomePage />} />
+          <Route path="/busDetails/:sessionId" element={<BusDetailsPage />} />
           <Route path="/searchResults" element={<SearchResultsPage />} />
         </Routes>
       </div>

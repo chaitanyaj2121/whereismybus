@@ -7,7 +7,7 @@ import { Bus, Search, MapPin } from "lucide-react"
 import { collection, getDocs } from "firebase/firestore"
 import { db } from "../firebase/config" // Assuming firebase/config exports 'db'
 
-const PassengerHomePage = () => {
+const HomePage = () => {
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
   const [allStops, setAllStops] = useState([])
@@ -112,7 +112,7 @@ const PassengerHomePage = () => {
       const searchTo = to.trim().toLowerCase()
 
       querySnapshot.forEach((doc) => {
-        const route = { id: doc.id, ...doc.data() }
+        const route = { id: doc.id, ...doc.data() } // Ensure 'id' is included here
         if (route.stops && Array.isArray(route.stops)) {
           const routeStopsLower = route.stops.map((stop) => stop.toLowerCase())
           const fromIndex = routeStopsLower.indexOf(searchFrom)
@@ -121,9 +121,10 @@ const PassengerHomePage = () => {
           if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
             // Bus found for this route, add it to matchingRoutes
             matchingRoutes.push({
+              id: route.id, // <--- THIS IS THE CRITICAL ADDITION
               routeName: route.routeName,
               stops: route.stops,
-              // Add any other relevant route data you want to display
+              createdBy: route.createdBy, // <--- THIS IS ALSO CRITICAL
               staticDepartureTime: "12:00 PM", // Static time as requested
             })
           }
@@ -131,6 +132,8 @@ const PassengerHomePage = () => {
       })
 
       if (matchingRoutes.length > 0) {
+        // Log the data being sent to SearchResultsPage
+        console.log("Navigating to /searchResults with routes:", matchingRoutes)
         // If buses are found, navigate to SearchResultsPage
         navigate("/searchResults", {
           state: { from, to, routes: matchingRoutes },
@@ -291,4 +294,4 @@ const PassengerHomePage = () => {
   )
 }
 
-export default PassengerHomePage
+export default HomePage

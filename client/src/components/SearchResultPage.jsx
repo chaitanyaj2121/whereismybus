@@ -1,30 +1,162 @@
 import React, { useEffect, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Bus, Clock, MapPin, ArrowLeft } from "lucide-react"
+import { Bus, Clock, MapPin, ArrowLeft, Info } from "lucide-react"
+
+// Import Firebase Firestore modules
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc,
+} from "firebase/firestore"
+import { db } from "../firebase/config" // Assuming firebase/config exports 'db'
 
 const SearchResultsPage = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
-  const [foundRoutes, setFoundRoutes] = useState([])
+  const [foundRoutesWithSession, setFoundRoutesWithSession] = useState([])
+  const [loadingSessions, setLoadingSessions] = useState(true)
 
   useEffect(() => {
-    // Get data from navigation state
-    if (location.state && location.state.routes) {
-      setFrom(location.state.from)
-      setTo(location.state.to)
-      setFoundRoutes(location.state.routes)
-    } else {
-      // If no state, it means direct access or refresh, so navigate back or show a message
-      // For now, let's just show no results. In a real app, you might re-fetch or redirect.
-      setFoundRoutes([])
+    const fetchMatchingSessions = async () => {
+      setLoadingSessions(true)
+      const initialRoutes = location.state?.routes || []
+      setFrom(location.state?.from || "")
+      setTo(location.state?.to || "")
+
+      if (initialRoutes.length === 0) {
+        setFoundRoutesWithSession([])
+        setLoadingSessions(false)
+        console.log("No initial routes passed to SearchResultsPage.")
+        return
+      }
+
+      console.log("Initial routes received:", initialRoutes)
+
+      try {
+        const sessionsRef = collection(db, "busRouteSessions")
+        const busesRef = collection(db, "buses")
+
+        // Fetch ALL sessions to check for matches
+        const allSessionsSnapshot = await getDocs(sessionsRef)
+        const allSessionsMap = new Map() // Map session by routeId and driverId for quick lookup
+
+        allSessionsSnapshot.forEach((doc) => {
+          const session = { id: doc.id, ...doc.data() }
+          // Store session keyed by a combination of routeId and driverId
+          const key = `${session.routeId}_${session.driverId}`
+          allSessionsMap.set(key, session)
+          console.log(`Mapped session: Key=${key}, SessionData=`, session)
+        })
+        console.log("Total sessions fetched and mapped:", allSessionsMap.size)
+
+        const routesWithSessionData = []
+        for (const route of initialRoutes) {
+          // FIXED: Match route.createdBy with session.driverId
+          const key = `${route.id}_${route.createdBy}`
+          console.log(
+            `Attempting to match route: RouteName=${route.routeName}, RouteID=${route.id}, CreatedBy=${route.createdBy}. Constructed Key=${key}`
+          )
+          const matchingSession = allSessionsMap.get(key)
+
+          if (matchingSession) {
+            console.log(
+              `MATCH FOUND for route ${route.routeName}. Matching Session:`,
+              matchingSession
+            )
+
+            // Fetch bus details for display
+            const busDocRef = doc(db, "buses", matchingSession.busId)
+            const busDocSnap = await getDoc(busDocRef)
+            let busDetails = null
+            if (busDocSnap.exists()) {
+              busDetails = busDocSnap.data()
+              console.log(
+                `Fetched bus details for busId ${matchingSession.busId}:`,
+                busDetails
+              )
+            } else {
+              console.warn(
+                `Bus details not found for busId: ${matchingSession.busId}`
+              )
+            }
+
+            // Get current stop name from session progress
+            const currentStopName =
+              matchingSession.progress?.[matchingSession.currentStopIndex]
+                ?.stopName || "Unknown"
+
+            // Get session start time
+            const startTime =
+              matchingSession.startTime?.toDate?.() ||
+              new Date(matchingSession.startTime)
+
+            routesWithSessionData.push({
+              ...route,
+              matchingSession: {
+                ...matchingSession,
+                busNumber: busDetails?.busNumber || "N/A",
+                busModel: busDetails?.busModel || "N/A",
+                currentStopName,
+                startTime,
+                // Include all session details for display
+                sessionId: matchingSession.id,
+                routeName: matchingSession.routeName,
+                stops: matchingSession.stops || [],
+                progress: matchingSession.progress || {},
+                currentStopIndex: matchingSession.currentStopIndex || 0,
+                isActive: matchingSession.isActive || false,
+                busId: matchingSession.busId,
+                driverId: matchingSession.driverId,
+              },
+            })
+          } else {
+            console.log(
+              `NO MATCHING SESSION found for route ${route.routeName}. Key searched: ${key}`
+            )
+            // Include routes without a matching session
+            routesWithSessionData.push({
+              ...route,
+              matchingSession: null,
+            })
+          }
+        }
+        setFoundRoutesWithSession(routesWithSessionData)
+      } catch (error) {
+        console.error("Error fetching matching sessions or bus details:", error)
+        // Handle error gracefully
+        setFoundRoutesWithSession(
+          initialRoutes.map((route) => ({ ...route, matchingSession: null }))
+        )
+      } finally {
+        setLoadingSessions(false)
+      }
     }
+
+    fetchMatchingSessions()
   }, [location.state])
 
+  const handleViewDetails = (sessionId) => {
+    navigate(`/busDetails/${sessionId}`)
+  }
+
   const handleBackToSearch = () => {
-    navigate("/") // Navigate back to the PassengerHomePage
+    navigate("/search")
+  }
+
+  const formatTime = (timestamp) => {
+    if (!timestamp) return "N/A"
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    })
   }
 
   return (
@@ -51,28 +183,107 @@ const SearchResultsPage = () => {
       {/* Results Section */}
       <main className="flex-grow flex items-start justify-center">
         <div className="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6 lg:p-8 backdrop-blur-sm bg-opacity-80">
-          {foundRoutes.length > 0 ? (
+          {loadingSessions ? (
+            <div className="text-center py-10">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Checking for matching buses...</p>
+            </div>
+          ) : foundRoutesWithSession.length > 0 ? (
             <div className="space-y-6">
-              {foundRoutes.map((route, index) => (
+              {foundRoutesWithSession.map((route, index) => (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="bg-green-50 border border-green-200 rounded-xl p-5 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0"
+                  className={`border rounded-xl p-5 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0
+                    ${
+                      route.matchingSession
+                        ? "bg-green-50 border-green-200"
+                        : "bg-gray-50 border-gray-200"
+                    }`}
                 >
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-green-800 mb-1">
+                    <h3 className="text-xl font-bold text-gray-800 mb-1">
                       Route: {route.routeName}
                     </h3>
                     <p className="text-gray-700 text-sm flex items-center">
-                      <MapPin className="h-4 w-4 mr-2 text-green-600" />
+                      <MapPin className="h-4 w-4 mr-2 text-gray-600" />
                       Stops: {route.stops.join(" → ")}
                     </p>
+                    {route.matchingSession ? (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-green-700 text-sm flex items-center">
+                          <Bus className="h-4 w-4 mr-2 text-green-600" />
+                          Bus: {route.matchingSession.busNumber} (
+                          {route.matchingSession.busModel})
+                        </p>
+                        <p className="text-green-700 text-sm flex items-center">
+                          <MapPin className="h-4 w-4 mr-2 text-green-600" />
+                          Current Stop: {
+                            route.matchingSession.currentStopName
+                          }{" "}
+                          (Stop {route.matchingSession.currentStopIndex + 1})
+                        </p>
+                        <p className="text-green-700 text-sm flex items-center">
+                          <Clock className="h-4 w-4 mr-2 text-green-600" />
+                          Started: {formatTime(route.matchingSession.startTime)}
+                        </p>
+                        <p
+                          className={`text-sm flex items-center ${
+                            route.matchingSession.isActive
+                              ? "text-green-600"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          <Clock className="h-4 w-4 mr-2" />
+                          Status:{" "}
+                          {route.matchingSession.isActive
+                            ? "Active"
+                            : "Inactive"}
+                        </p>
+                        <div className="text-xs text-gray-600 mt-2">
+                          <p>
+                            <strong>Driver ID:</strong>{" "}
+                            {route.matchingSession.driverId}
+                          </p>
+                          <p>
+                            <strong>Route Created By:</strong> {route.createdBy}
+                          </p>
+                          <p>
+                            <strong>Bus ID:</strong>{" "}
+                            {route.matchingSession.busId}
+                          </p>
+                          <p>
+                            <strong>Session ID:</strong>{" "}
+                            {route.matchingSession.sessionId}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-orange-600 text-sm flex items-center mt-2">
+                        <Clock className="h-4 w-4 mr-2 text-orange-500" />
+                        No matching bus session found for this route.
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center text-green-700 font-semibold text-lg">
-                    <Clock className="h-5 w-5 mr-2" />
-                    {route.staticDepartureTime} (Static)
+                  <div className="flex flex-col items-end space-y-2 sm:ml-4">
+                    <div className="flex items-center text-gray-700 font-semibold text-lg">
+                      <Clock className="h-5 w-5 mr-2" />
+                      {route.staticDepartureTime || "N/A"} (Static)
+                    </div>
+                    {route.matchingSession && (
+                      <button
+                        onClick={() =>
+                          handleViewDetails(route.matchingSession.sessionId)
+                        }
+                        className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg
+                                   hover:bg-blue-700 transition duration-300 shadow-md text-sm"
+                      >
+                        <Info className="h-4 w-4 mr-2" />
+                        View Live Details
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               ))}

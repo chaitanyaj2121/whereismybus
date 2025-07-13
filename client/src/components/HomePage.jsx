@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
-import { Bus, Search, MapPin } from "lucide-react" // Added MapPin for suggestions
+import { Bus, Search, MapPin } from "lucide-react"
 
 // Import Firebase Firestore modules
 import { collection, getDocs } from "firebase/firestore"
@@ -10,15 +10,13 @@ import { db } from "../firebase/config" // Assuming firebase/config exports 'db'
 const PassengerHomePage = () => {
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
-  const [allStops, setAllStops] = useState([]) // To store all unique stops for suggestions
+  const [allStops, setAllStops] = useState([])
   const [filteredFromSuggestions, setFilteredFromSuggestions] = useState([])
   const [filteredToSuggestions, setFilteredToSuggestions] = useState([])
   const [showFromSuggestions, setShowFromSuggestions] = useState(false)
   const [showToSuggestions, setShowToSuggestions] = useState(false)
-  const [searchResult, setSearchResult] = useState("") // "Bus Found" or "No Bus Found"
-  const [foundBusTime, setFoundBusTime] = useState("") // Static time for now
-  const [foundRouteName, setFoundRouteName] = useState("") // Name of the found route
-  const [loadingSearch, setLoadingSearch] = useState(false) // Loading state for search
+  const [searchResult, setSearchResult] = useState("") // Only for "No Bus Found" now
+  const [loadingSearch, setLoadingSearch] = useState(false)
   const navigate = useNavigate()
 
   // Fetch all stops from Firestore routes for suggestions
@@ -34,7 +32,7 @@ const PassengerHomePage = () => {
           if (route.stops && Array.isArray(route.stops)) {
             route.stops.forEach((stop) => {
               if (typeof stop === "string" && stop.trim() !== "") {
-                uniqueStops.add(stop.trim().toLowerCase()) // Store in lowercase for case-insensitive matching
+                uniqueStops.add(stop.trim().toLowerCase())
               }
             })
           }
@@ -42,7 +40,7 @@ const PassengerHomePage = () => {
         setAllStops(Array.from(uniqueStops))
       } catch (error) {
         console.error("Error fetching all stops:", error)
-        // Optionally, show an error message to the user
+        // Optionally, show an error message to the user, e.g., using a state variable
       }
     }
 
@@ -63,8 +61,6 @@ const PassengerHomePage = () => {
       setShowFromSuggestions(false)
     }
     setSearchResult("") // Clear previous search result on input change
-    setFoundBusTime("")
-    setFoundRouteName("")
   }
 
   // Handle input changes for 'To' field and filter suggestions
@@ -81,8 +77,6 @@ const PassengerHomePage = () => {
       setShowToSuggestions(false)
     }
     setSearchResult("") // Clear previous search result on input change
-    setFoundBusTime("")
-    setFoundRouteName("")
   }
 
   // Select a suggestion for 'From'
@@ -101,9 +95,7 @@ const PassengerHomePage = () => {
   const handleSearch = async (e) => {
     e.preventDefault()
     setLoadingSearch(true)
-    setSearchResult("")
-    setFoundBusTime("")
-    setFoundRouteName("")
+    setSearchResult("") // Clear previous results
 
     if (!from.trim() || !to.trim()) {
       alert("Please enter both source and destination.")
@@ -114,29 +106,37 @@ const PassengerHomePage = () => {
     try {
       const routesRef = collection(db, "routes")
       const querySnapshot = await getDocs(routesRef)
-      let busFound = false
+      const matchingRoutes = []
 
       const searchFrom = from.trim().toLowerCase()
       const searchTo = to.trim().toLowerCase()
 
-      for (const doc of querySnapshot.docs) {
-        const route = doc.data()
+      querySnapshot.forEach((doc) => {
+        const route = { id: doc.id, ...doc.data() }
         if (route.stops && Array.isArray(route.stops)) {
           const routeStopsLower = route.stops.map((stop) => stop.toLowerCase())
           const fromIndex = routeStopsLower.indexOf(searchFrom)
           const toIndex = routeStopsLower.indexOf(searchTo)
 
           if (fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex) {
-            busFound = true
-            setSearchResult("Bus Found!")
-            setFoundBusTime("12:00 PM") // Static time as requested
-            setFoundRouteName(route.routeName)
-            break // Found a bus, no need to check other routes
+            // Bus found for this route, add it to matchingRoutes
+            matchingRoutes.push({
+              routeName: route.routeName,
+              stops: route.stops,
+              // Add any other relevant route data you want to display
+              staticDepartureTime: "12:00 PM", // Static time as requested
+            })
           }
         }
-      }
+      })
 
-      if (!busFound) {
+      if (matchingRoutes.length > 0) {
+        // If buses are found, navigate to SearchResultsPage
+        navigate("/searchResults", {
+          state: { from, to, routes: matchingRoutes },
+        })
+      } else {
+        // If no buses found, display message on current page
         setSearchResult("No Bus Found for this route.")
       }
     } catch (error) {
@@ -187,18 +187,18 @@ const PassengerHomePage = () => {
                   onFocus={() => setShowFromSuggestions(true)}
                   onBlur={() =>
                     setTimeout(() => setShowFromSuggestions(false), 100)
-                  } // Delay hide to allow click
+                  }
                   placeholder="Enter starting point"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                   required
-                  autoComplete="off" // Disable browser autocomplete
+                  autoComplete="off"
                 />
                 {showFromSuggestions && filteredFromSuggestions.length > 0 && (
                   <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
                     {filteredFromSuggestions.map((suggestion, index) => (
                       <li
                         key={index}
-                        onMouseDown={() => selectFromSuggestion(suggestion)} // Use onMouseDown to trigger before onBlur
+                        onMouseDown={() => selectFromSuggestion(suggestion)}
                         className="p-3 hover:bg-blue-100 cursor-pointer flex items-center text-gray-800"
                       >
                         <MapPin className="h-4 w-4 mr-2 text-blue-500" />
@@ -223,18 +223,18 @@ const PassengerHomePage = () => {
                   onFocus={() => setShowToSuggestions(true)}
                   onBlur={() =>
                     setTimeout(() => setShowToSuggestions(false), 100)
-                  } // Delay hide to allow click
+                  }
                   placeholder="Enter destination"
                   className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
                   required
-                  autoComplete="off" // Disable browser autocomplete
+                  autoComplete="off"
                 />
                 {showToSuggestions && filteredToSuggestions.length > 0 && (
                   <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
                     {filteredToSuggestions.map((suggestion, index) => (
                       <li
                         key={index}
-                        onMouseDown={() => selectToSuggestion(suggestion)} // Use onMouseDown to trigger before onBlur
+                        onMouseDown={() => selectToSuggestion(suggestion)}
                         className="p-3 hover:bg-blue-100 cursor-pointer flex items-center text-gray-800"
                       >
                         <MapPin className="h-4 w-4 mr-2 text-blue-500" />
@@ -264,25 +264,15 @@ const PassengerHomePage = () => {
             </button>
           </form>
 
-          {/* Search Result Display */}
+          {/* Search Result Display (only for "No Bus Found") */}
           {searchResult && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className={`mt-8 p-4 rounded-lg text-center ${
-                searchResult.includes("Found")
-                  ? "bg-green-100 text-green-800 border border-green-200"
-                  : "bg-red-100 text-red-800 border border-red-200"
-              }`}
+              className="mt-8 p-4 rounded-lg text-center bg-red-100 text-red-800 border border-red-200"
             >
               <p className="font-semibold text-lg mb-1">{searchResult}</p>
-              {foundRouteName && (
-                <p className="text-md">Route: {foundRouteName}</p>
-              )}
-              {foundBusTime && (
-                <p className="text-md">Estimated Departure: {foundBusTime}</p>
-              )}
             </motion.div>
           )}
         </div>

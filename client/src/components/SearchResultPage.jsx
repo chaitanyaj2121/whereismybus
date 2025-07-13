@@ -243,21 +243,21 @@ const SearchResultsPage = () => {
                             : "Inactive"}
                         </p>
                         <div className="text-xs text-gray-600 mt-2">
-                          <p>
+                          {/* <p>
                             <strong>Driver ID:</strong>{" "}
                             {route.matchingSession.driverId}
-                          </p>
-                          <p>
+                          </p> */}
+                          {/* <p>
                             <strong>Route Created By:</strong> {route.createdBy}
-                          </p>
-                          <p>
+                          </p> */}
+                          {/* <p>
                             <strong>Bus ID:</strong>{" "}
                             {route.matchingSession.busId}
                           </p>
                           <p>
                             <strong>Session ID:</strong>{" "}
                             {route.matchingSession.sessionId}
-                          </p>
+                          </p> */}
                         </div>
                       </div>
                     ) : (

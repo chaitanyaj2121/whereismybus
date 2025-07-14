@@ -11,6 +11,7 @@ import {
   where,
   doc,
   getDoc,
+  onSnapshot,
 } from "firebase/firestore"
 import { db } from "../firebase/config" // Assuming firebase/config exports 'db'
 
@@ -23,7 +24,7 @@ const SearchResultsPage = () => {
   const [loadingSessions, setLoadingSessions] = useState(true)
 
   useEffect(() => {
-    const fetchMatchingSessions = async () => {
+    const setupRealtimeListeners = async () => {
       setLoadingSessions(true)
       const initialRoutes = location.state?.routes || []
       setFrom(location.state?.from || "")
@@ -42,103 +43,141 @@ const SearchResultsPage = () => {
         const sessionsRef = collection(db, "busRouteSessions")
         const busesRef = collection(db, "buses")
 
-        // Fetch ALL sessions to check for matches
-        const allSessionsSnapshot = await getDocs(sessionsRef)
-        const allSessionsMap = new Map() // Map session by routeId and driverId for quick lookup
+        // Set up real-time listener for bus route sessions
+        const unsubscribeSessions = onSnapshot(
+          sessionsRef,
+          async (snapshot) => {
+            console.log("Real-time update received for sessions")
 
-        allSessionsSnapshot.forEach((doc) => {
-          const session = { id: doc.id, ...doc.data() }
-          // Store session keyed by a combination of routeId and driverId
-          const key = `${session.routeId}_${session.driverId}`
-          allSessionsMap.set(key, session)
-          console.log(`Mapped session: Key=${key}, SessionData=`, session)
-        })
-        console.log("Total sessions fetched and mapped:", allSessionsMap.size)
-
-        const routesWithSessionData = []
-        for (const route of initialRoutes) {
-          // FIXED: Match route.createdBy with session.driverId
-          const key = `${route.id}_${route.createdBy}`
-          console.log(
-            `Attempting to match route: RouteName=${route.routeName}, RouteID=${route.id}, CreatedBy=${route.createdBy}. Constructed Key=${key}`
-          )
-          const matchingSession = allSessionsMap.get(key)
-
-          if (matchingSession) {
+            const allSessionsMap = new Map()
+            snapshot.forEach((doc) => {
+              const session = { id: doc.id, ...doc.data() }
+              const key = `${session.routeId}_${session.driverId}`
+              allSessionsMap.set(key, session)
+              console.log(`Mapped session: Key=${key}, SessionData=`, session)
+            })
             console.log(
-              `MATCH FOUND for route ${route.routeName}. Matching Session:`,
-              matchingSession
+              "Total sessions fetched and mapped:",
+              allSessionsMap.size
             )
 
-            // Fetch bus details for display
-            const busDocRef = doc(db, "buses", matchingSession.busId)
-            const busDocSnap = await getDoc(busDocRef)
-            let busDetails = null
-            if (busDocSnap.exists()) {
-              busDetails = busDocSnap.data()
+            const routesWithSessionData = []
+            for (const route of initialRoutes) {
+              const key = `${route.id}_${route.createdBy}`
               console.log(
-                `Fetched bus details for busId ${matchingSession.busId}:`,
-                busDetails
+                `Attempting to match route: RouteName=${route.routeName}, RouteID=${route.id}, CreatedBy=${route.createdBy}. Constructed Key=${key}`
               )
-            } else {
-              console.warn(
-                `Bus details not found for busId: ${matchingSession.busId}`
-              )
+              const matchingSession = allSessionsMap.get(key)
+
+              if (matchingSession) {
+                console.log(
+                  `MATCH FOUND for route ${route.routeName}. Matching Session:`,
+                  matchingSession
+                )
+
+                // Fetch bus details for display
+                const busDocRef = doc(db, "buses", matchingSession.busId)
+                const busDocSnap = await getDoc(busDocRef)
+                let busDetails = null
+                if (busDocSnap.exists()) {
+                  busDetails = busDocSnap.data()
+                  console.log(
+                    `Fetched bus details for busId ${matchingSession.busId}:`,
+                    busDetails
+                  )
+                } else {
+                  console.warn(
+                    `Bus details not found for busId: ${matchingSession.busId}`
+                  )
+                }
+
+                // Get current stop name from session progress
+                const currentStopName =
+                  matchingSession.progress?.[matchingSession.currentStopIndex]
+                    ?.stopName || "Unknown"
+
+                // Get session start time
+                const startTime =
+                  matchingSession.startTime?.toDate?.() ||
+                  new Date(matchingSession.startTime)
+
+                routesWithSessionData.push({
+                  ...route,
+                  matchingSession: {
+                    ...matchingSession,
+                    busNumber: busDetails?.busNumber || "N/A",
+                    busModel: busDetails?.busModel || "N/A",
+                    currentStopName,
+                    startTime,
+                    sessionId: matchingSession.id,
+                    routeName: matchingSession.routeName,
+                    stops: matchingSession.stops || [],
+                    progress: matchingSession.progress || {},
+                    currentStopIndex: matchingSession.currentStopIndex || 0,
+                    isActive: matchingSession.isActive || false,
+                    busId: matchingSession.busId,
+                    driverId: matchingSession.driverId,
+                  },
+                })
+              } else {
+                console.log(
+                  `NO MATCHING SESSION found for route ${route.routeName}. Key searched: ${key}`
+                )
+                routesWithSessionData.push({
+                  ...route,
+                  matchingSession: null,
+                })
+              }
             }
-
-            // Get current stop name from session progress
-            const currentStopName =
-              matchingSession.progress?.[matchingSession.currentStopIndex]
-                ?.stopName || "Unknown"
-
-            // Get session start time
-            const startTime =
-              matchingSession.startTime?.toDate?.() ||
-              new Date(matchingSession.startTime)
-
-            routesWithSessionData.push({
-              ...route,
-              matchingSession: {
-                ...matchingSession,
-                busNumber: busDetails?.busNumber || "N/A",
-                busModel: busDetails?.busModel || "N/A",
-                currentStopName,
-                startTime,
-                // Include all session details for display
-                sessionId: matchingSession.id,
-                routeName: matchingSession.routeName,
-                stops: matchingSession.stops || [],
-                progress: matchingSession.progress || {},
-                currentStopIndex: matchingSession.currentStopIndex || 0,
-                isActive: matchingSession.isActive || false,
-                busId: matchingSession.busId,
-                driverId: matchingSession.driverId,
-              },
-            })
-          } else {
-            console.log(
-              `NO MATCHING SESSION found for route ${route.routeName}. Key searched: ${key}`
-            )
-            // Include routes without a matching session
-            routesWithSessionData.push({
-              ...route,
-              matchingSession: null,
-            })
+            setFoundRoutesWithSession(routesWithSessionData)
+            setLoadingSessions(false)
+          },
+          (error) => {
+            console.error("Error in real-time sessions listener:", error)
+            setLoadingSessions(false)
           }
+        )
+
+        // Set up real-time listener for buses collection to update bus details
+        const unsubscribeBuses = onSnapshot(
+          busesRef,
+          (snapshot) => {
+            console.log("Real-time update received for buses")
+            // This will trigger a re-evaluation of sessions which will fetch updated bus details
+            // The sessions listener will handle the bus details update
+          },
+          (error) => {
+            console.error("Error in real-time buses listener:", error)
+          }
+        )
+
+        // Return cleanup function
+        return () => {
+          console.log("Cleaning up real-time listeners")
+          unsubscribeSessions()
+          unsubscribeBuses()
         }
-        setFoundRoutesWithSession(routesWithSessionData)
       } catch (error) {
-        console.error("Error fetching matching sessions or bus details:", error)
-        // Handle error gracefully
+        console.error("Error setting up real-time listeners:", error)
         setFoundRoutesWithSession(
           initialRoutes.map((route) => ({ ...route, matchingSession: null }))
         )
-      } finally {
         setLoadingSessions(false)
       }
     }
 
-    fetchMatchingSessions()
+    // Setup listeners and store cleanup function
+    let cleanup
+    setupRealtimeListeners().then((cleanupFn) => {
+      cleanup = cleanupFn
+    })
+
+    // Cleanup on component unmount
+    return () => {
+      if (cleanup) {
+        cleanup()
+      }
+    }
   }, [location.state])
 
   const handleViewDetails = (sessionId) => {
@@ -192,11 +231,13 @@ const SearchResultsPage = () => {
             <div className="space-y-6">
               {foundRoutesWithSession.map((route, index) => (
                 <motion.div
-                  key={index}
+                  key={`${route.id}-${
+                    route.matchingSession?.sessionId || "no-session"
+                  }`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className={`border rounded-xl p-5 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0
+                  className={`border rounded-xl p-5 shadow-md flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0 transition-all duration-300
                     ${
                       route.matchingSession
                         ? "bg-green-50 border-green-200"
@@ -243,14 +284,15 @@ const SearchResultsPage = () => {
                             : "अजून सुरू झाली नाही  "}
                         </p>
                         <div className="text-xs text-gray-600 mt-2">
+                          {/* Debug info commented out */}
                           {/* <p>
                             <strong>Driver ID:</strong>{" "}
                             {route.matchingSession.driverId}
-                          </p> */}
-                          {/* <p>
+                          </p>
+                          <p>
                             <strong>Route Created By:</strong> {route.createdBy}
-                          </p> */}
-                          {/* <p>
+                          </p>
+                          <p>
                             <strong>Bus ID:</strong>{" "}
                             {route.matchingSession.busId}
                           </p>

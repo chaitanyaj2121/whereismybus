@@ -239,8 +239,8 @@ const SearchResultsPage = () => {
                           <Clock className="h-4 w-4 mr-2" />
                           Status:{" "}
                           {route.matchingSession.isActive
-                            ? "Active"
-                            : "Inactive"}
+                            ? "बस चालू आहे  "
+                            : "अजून सुरू झाली नाही  "}
                         </p>
                         <div className="text-xs text-gray-600 mt-2">
                           {/* <p>
@@ -263,7 +263,7 @@ const SearchResultsPage = () => {
                     ) : (
                       <p className="text-orange-600 text-sm flex items-center mt-2">
                         <Clock className="h-4 w-4 mr-2 text-orange-500" />
-                        No matching bus session found for this route.
+                        Bus is not started yet
                       </p>
                     )}
                   </div>

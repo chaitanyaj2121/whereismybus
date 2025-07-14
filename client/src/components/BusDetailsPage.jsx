@@ -8,9 +8,9 @@ import {
   ArrowLeft,
   Loader2,
   Play,
-  CheckCircle2, // Changed from Check to CheckCircle2 for better visual
-  CircleDot, // Represents current stop better
-  Circle, // Represents pending stop better
+  CheckCircle2,
+  CircleDot,
+  Circle,
 } from "lucide-react"
 
 // Import Firebase Firestore modules
@@ -18,7 +18,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore"
 import { db } from "../firebase/config" // Assuming firebase/config exports 'db'
 
 const BusDetailsPage = () => {
-  const { sessionId } = useParams() // Get sessionId from URL params
+  const { sessionId } = useParams()
   const navigate = useNavigate()
   const [sessionData, setSessionData] = useState(null)
   const [busDetails, setBusDetails] = useState(null)
@@ -34,8 +34,7 @@ const BusDetailsPage = () => {
 
     const fetchBusAndSessionData = async () => {
       try {
-        // Fetch static bus details once
-        const busDocRef = doc(db, "buses", sessionId) // sessionId is also busId
+        const busDocRef = doc(db, "buses", sessionId)
         const busDocSnap = await getDoc(busDocRef)
         if (busDocSnap.exists()) {
           setBusDetails(busDocSnap.data())
@@ -45,7 +44,6 @@ const BusDetailsPage = () => {
           return
         }
 
-        // Listen for real-time updates on the bus session
         const sessionDocRef = doc(db, "busRouteSessions", sessionId)
         const unsubscribe = onSnapshot(
           sessionDocRef,
@@ -55,7 +53,7 @@ const BusDetailsPage = () => {
               setLoading(false)
             } else {
               setError("Active bus session not found or ended.")
-              setSessionData(null) // Clear session data if it no longer exists
+              setSessionData(null)
               setLoading(false)
             }
           },
@@ -66,7 +64,7 @@ const BusDetailsPage = () => {
           }
         )
 
-        return () => unsubscribe() // Clean up listener on unmount
+        return () => unsubscribe()
       } catch (err) {
         console.error("Error fetching initial bus or session data:", err)
         setError(`Failed to load bus details: ${err.message}`)
@@ -78,7 +76,7 @@ const BusDetailsPage = () => {
   }, [sessionId])
 
   const handleBack = () => {
-    navigate(-1) // Go back to the previous page (SearchResultsPage)
+    navigate(-1)
   }
 
   const sectionVariants = {
@@ -166,7 +164,86 @@ const BusDetailsPage = () => {
 
   const stops = sessionData.stops || []
   const currentStopIndex = sessionData.currentStopIndex || 0
-  // const progress = sessionData.progress || {}; // 'progress' is not used directly in rendering currentStopIndex for timestamps, but if you need to display details per stop based on 'progress' field, you can use it.
+  const progress = sessionData.progress || {}
+
+  const formatTime = (timestampValue) => {
+    if (!timestampValue) return "N/A"
+
+    let date
+
+    // Firestore Timestamp
+    if (typeof timestampValue.toDate === "function") {
+      date = timestampValue.toDate()
+    }
+    // Native Date object
+    else if (timestampValue instanceof Date) {
+      date = timestampValue
+    }
+    // Custom string like "July 13, 2025 at 9:51:22 PM UTC+5:30"
+    else if (typeof timestampValue === "string") {
+      try {
+        // Handle the specific format: "July 13, 2025 at 10:09:48 PM UTC+5:30"
+        if (
+          timestampValue.includes(" at ") &&
+          timestampValue.includes(" UTC")
+        ) {
+          // Split by " at " to separate date and time parts
+          const parts = timestampValue.split(" at ")
+          if (parts.length === 2) {
+            const datePart = parts[0] // "July 13, 2025"
+            const timePart = parts[1] // "10:09:48 PM UTC+5:30"
+
+            // Remove the UTC timezone part from time
+            const timeWithoutUTC = timePart.replace(/ UTC.*$/, "").trim() // "10:09:48 PM"
+
+            // Combine date and time
+            const dateTimeString = `${datePart} ${timeWithoutUTC}` // "July 13, 2025 10:09:48 PM"
+
+            date = new Date(dateTimeString)
+          } else {
+            // Fallback: try direct parsing
+            date = new Date(timestampValue)
+          }
+        } else {
+          // For other string formats, try direct parsing
+          date = new Date(timestampValue)
+        }
+      } catch (error) {
+        console.error("Error parsing timestamp:", timestampValue, error)
+        return "N/A"
+      }
+    } else {
+      return "N/A"
+    }
+
+    // Invalid Date check
+    if (isNaN(date.getTime())) {
+      console.error("Invalid date created from:", timestampValue)
+      return "N/A"
+    }
+
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+  }
+
+  // Helper function to get the appropriate time for each stop based on its status
+  const getStopTime = (index) => {
+    if (index < currentStopIndex) {
+      // Completed stop - try completedAt first, then arrivedAt, then startedAt as fallback
+      return formatTime(
+        progress[index]?.completedAt ||
+          progress[index]?.arrivedAt ||
+          progress[index]?.startedAt
+      )
+    } else if (index === currentStopIndex) {
+      // Current stop - show when it started
+      return formatTime(progress[index]?.startedAt)
+    }
+    // Future stops don't have a time yet
+    return null
+  }
 
   return (
     <motion.div
@@ -229,23 +306,11 @@ const BusDetailsPage = () => {
             )}
             <p className="text-blue-700 flex items-center">
               <Play className="h-5 w-5 mr-2 text-blue-400" />
-              Started At:{" "}
-              {sessionData.startTime
-                ?.toDate()
-                .toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }) || "N/A"}
+              Started At: {formatTime(sessionData.startTime)}
             </p>
             <p className="text-blue-700 flex items-center">
               <Clock className="h-5 w-5 mr-2 text-blue-400" />
-              Last Updated:{" "}
-              {sessionData.progress?.[currentStopIndex]?.startedAt
-                ?.toDate()
-                .toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }) || "N/A"}
+              Current Stop Time: {getStopTime(currentStopIndex) || "N/A"}
             </p>
           </div>
         </motion.div>
@@ -259,66 +324,82 @@ const BusDetailsPage = () => {
             <Bus className="h-7 w-7 mr-3 text-green-600" /> Route Progress
           </h2>
           <div className="space-y-4">
-            {stops.map((stop, index) => (
-              <motion.div
-                key={index}
-                className={`flex items-center space-x-3 p-4 rounded-xl transition-all duration-300
-                  ${
-                    index < currentStopIndex
-                      ? "bg-green-50 border border-green-200"
-                      : index === currentStopIndex
-                      ? "bg-blue-50 border border-blue-200 shadow-md"
-                      : "bg-gray-50 border border-gray-200"
-                  }`}
-                variants={itemVariants}
-              >
-                <div
-                  className={`flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full
+            {stops.map((stop, index) => {
+              const stopTime = getStopTime(index)
+
+              return (
+                <motion.div
+                  key={index}
+                  className={`flex items-center space-x-3 p-4 rounded-xl transition-all duration-300
                     ${
                       index < currentStopIndex
-                        ? "bg-green-500 text-white"
+                        ? "bg-green-50 border border-green-200"
                         : index === currentStopIndex
-                        ? "bg-blue-600 text-white"
-                        : "bg-gray-300 text-gray-600"
+                        ? "bg-blue-50 border border-blue-200 shadow-md"
+                        : "bg-gray-50 border border-gray-200"
                     }`}
+                  variants={itemVariants}
                 >
-                  {index < currentStopIndex ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : index === currentStopIndex ? (
-                    <CircleDot className="h-4 w-4" />
-                  ) : (
-                    <Circle className="h-4 w-4" />
-                  )}
-                </div>
-                <span
-                  className={`font-medium flex-1 text-lg
-                    ${
-                      index < currentStopIndex
-                        ? "text-green-900"
-                        : index === currentStopIndex
-                        ? "text-blue-900 font-semibold"
-                        : "text-gray-700"
-                    }`}
-                >
-                  {stop}
-                </span>
-                {index < currentStopIndex && (
-                  <div className="flex items-center text-sm text-green-600 font-medium">
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Completed
+                  <div
+                    className={`flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full
+                      ${
+                        index < currentStopIndex
+                          ? "bg-green-500 text-white"
+                          : index === currentStopIndex
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-300 text-gray-600"
+                      }`}
+                  >
+                    {index < currentStopIndex ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : index === currentStopIndex ? (
+                      <CircleDot className="h-4 w-4" />
+                    ) : (
+                      <Circle className="h-4 w-4" />
+                    )}
                   </div>
-                )}
-                {index === currentStopIndex && (
-                  <div className="flex items-center text-sm text-blue-600 font-medium">
-                    <Clock className="h-4 w-4 mr-1" /> Current Location
+
+                  <div className="flex-1 flex items-center justify-between">
+                    <span
+                      className={`font-medium text-lg
+                        ${
+                          index < currentStopIndex
+                            ? "text-green-900"
+                            : index === currentStopIndex
+                            ? "text-blue-900 font-semibold"
+                            : "text-gray-700"
+                        }`}
+                    >
+                      {stop}
+                    </span>
+
+                    {/* Time display for each stop */}
+                    <div className="flex items-center text-sm font-medium">
+                      {index < currentStopIndex && stopTime && (
+                        <div className="flex items-center text-green-600">
+                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                          पोहोचली आणि निघाली वेळ :{stopTime}
+                        </div>
+                      )}
+
+                      {index === currentStopIndex && (
+                        <div className="flex items-center text-blue-600">
+                          <Clock className="h-4 w-4 mr-1" />
+                          {stopTime ? `येत आहे ` : "Current Location"}
+                        </div>
+                      )}
+
+                      {index > currentStopIndex && (
+                        <div className="flex items-center text-gray-500">
+                          <Circle className="h-4 w-4 mr-1" />
+                          Upcoming
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-                {index > currentStopIndex && (
-                  <div className="flex items-center text-sm text-gray-500 font-medium">
-                    <Circle className="h-4 w-4 mr-1" /> Upcoming
-                  </div>
-                )}
-              </motion.div>
-            ))}
+                </motion.div>
+              )
+            })}
           </div>
         </motion.div>
       </motion.main>

@@ -281,7 +281,7 @@ const SearchResultsPage = () => {
                           Status:{" "}
                           {route.matchingSession.isActive
                             ? "बस चालू आहे  "
-                            : "अजून सुरू झाली नाही  "}
+                            : "Journey completed   "}
                         </p>
                         <div className="text-xs text-gray-600 mt-2">
                           {/* Debug info commented out */}

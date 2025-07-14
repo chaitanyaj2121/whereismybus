@@ -52,7 +52,7 @@ const BusDetailsPage = () => {
               setSessionData(snapshot.data())
               setLoading(false)
             } else {
-              setError("Active bus session not found or ended.")
+              setError("Stopped due to some issue")
               setSessionData(null)
               setLoading(false)
             }

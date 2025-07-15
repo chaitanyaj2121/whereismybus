@@ -296,22 +296,23 @@ const BusDetailsPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-lg">
             <p className="font-semibold text-blue-800 flex items-center">
               <CircleDot className="h-5 w-5 mr-2 text-blue-500" />
-              Current Stop: {stops[currentStopIndex] || "N/A"}
+              पुढील स्टॉप : {stops[currentStopIndex] || "N/A"}
             </p>
-            {currentStopIndex < stops.length - 1 && (
+            {/* {currentStopIndex < stops.length - 1 && (
               <p className="text-blue-700 flex items-center">
                 <MapPin className="h-5 w-5 mr-2 text-blue-400" />
                 Next Stop: {stops[currentStopIndex + 1]}
               </p>
-            )}
+            )} */}
             <p className="text-blue-700 flex items-center">
               <Play className="h-5 w-5 mr-2 text-blue-400" />
-              Started At: {formatTime(sessionData.startTime)}
+              पहिल्या स्टॉप वरुण निघालेली वेळ :{" "}
+              {formatTime(sessionData.startTime)}
             </p>
-            <p className="text-blue-700 flex items-center">
+            {/* <p className="text-blue-700 flex items-center">
               <Clock className="h-5 w-5 mr-2 text-blue-400" />
               Current Stop Time: {getStopTime(currentStopIndex) || "N/A"}
-            </p>
+            </p> */}
           </div>
         </motion.div>
 
@@ -378,7 +379,7 @@ const BusDetailsPage = () => {
                       {index < currentStopIndex && stopTime && (
                         <div className="flex items-center text-green-600">
                           <CheckCircle2 className="h-4 w-4 mr-1" />
-                          पोहोचली आणि निघाली वेळ :{stopTime}
+                          {stopTime} ला पोहोचली
                         </div>
                       )}
 

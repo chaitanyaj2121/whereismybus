@@ -268,7 +268,8 @@ const SearchResultsPage = () => {
                         </p>
                         <p className="text-green-700 text-sm flex items-center">
                           <Clock className="h-4 w-4 mr-2 text-green-600" />
-                          Started: {formatTime(route.matchingSession.startTime)}
+                          पहिल्या स्टॉप वारुण निघालेली वेळ :{" "}
+                          {formatTime(route.matchingSession.startTime)}
                         </p>
                         <p
                           className={`text-sm flex items-center ${
@@ -311,8 +312,9 @@ const SearchResultsPage = () => {
                   </div>
                   <div className="flex flex-col items-end space-y-2 sm:ml-4">
                     <div className="flex items-center text-gray-700 font-semibold text-lg">
-                      <Clock className="h-5 w-5 mr-2" />
-                      {route.staticDepartureTime || "N/A"} (Static)
+                      <Clock className="h-5 w-5 mr-2" /> पहिल्या स्टॉप वरुण
+                      निघण्याची वेळ:
+                      {route.staticDepartureTime || "N/A"}
                     </div>
                     {route.matchingSession && (
                       <button

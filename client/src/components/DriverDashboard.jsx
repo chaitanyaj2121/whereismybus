@@ -45,6 +45,7 @@ const DriverDashboard = () => {
   const [newRoute, setNewRoute] = useState({
     routeName: "",
     stops: [""],
+    routeStartTime: "",
   })
   const [newBus, setNewBus] = useState({
     busNumber: "",
@@ -292,6 +293,7 @@ const DriverDashboard = () => {
         stops: newRoute.stops
           .filter((stop) => stop.trim())
           .map((stop) => stop.trim()),
+        routeStartTime: newRoute.routeStartTime,
         createdBy: user.uid,
         createdAt: serverTimestamp(),
         isActive: true,
@@ -300,7 +302,7 @@ const DriverDashboard = () => {
       await addDoc(collection(db, "routes"), routeData)
 
       // Reset form
-      setNewRoute({ routeName: "", stops: [""] })
+      setNewRoute({ routeName: "", stops: [""], routeStartTime: "" })
       setShowCreateRoute(false)
 
       alert("Route created successfully!")
@@ -708,6 +710,22 @@ const DriverDashboard = () => {
                   </button>
                 </h3>
                 <div className="space-y-4">
+                  <label className="block text-gray-700 font-medium text-sm md:text-base">
+                    Route Start Time:
+                  </label>
+                  <input
+                    type="time"
+                    value={newRoute.routeStartTime}
+                    onChange={(e) =>
+                      setNewRoute({
+                        ...newRoute,
+                        routeStartTime: e.target.value,
+                      })
+                    }
+                    className="w-full p-2 md:p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                    placeholder="Start Time"
+                  />
+
                   <input
                     type="text"
                     placeholder="Route Name (e.g., Downtown Express)"

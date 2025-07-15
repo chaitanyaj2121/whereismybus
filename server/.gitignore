@@ -1,0 +1,25 @@
+# Node modules (don't upload dependencies)
+node_modules/
+
+# Environment variables
+.env
+
+# Firebase admin SDK key
+whereismybus-26f34-firebase-adminsdk-fbsvc-57661c7384.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Optional: IDE folders (like VSCode)
+.vscode/
+.idea/
+
+# Optional: build files (if applicable)
+dist/
+build/

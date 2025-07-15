@@ -577,7 +577,7 @@ const DriverDashboard = () => {
         <div className="bg-white p-4 md:p-6 rounded-lg shadow-md mb-8 flex flex-col md:flex-row justify-between items-start md:items-center">
           <div>
             <h2 className="text-xl md:text-3xl font-semibold text-gray-800 mb-1">
-              Welcome, Driver!
+              Welcome, Transport Officer!
             </h2>
             <p className="text-gray-600 text-sm md:text-base">
               {user ? user.email : "Guest User"}

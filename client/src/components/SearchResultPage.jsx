@@ -261,7 +261,7 @@ const SearchResultsPage = () => {
                         </p>
                         <p className="text-green-700 text-sm flex items-center">
                           <MapPin className="h-4 w-4 mr-2 text-green-600" />
-                          Current Stop: {
+                          पुढील स्टॉप : {
                             route.matchingSession.currentStopName
                           }{" "}
                           (Stop {route.matchingSession.currentStopIndex + 1})

@@ -91,15 +91,15 @@ const BusDetailsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="text-center bg-white p-8 rounded-2xl shadow-xl"
+          className="text-center bg-white/80 backdrop-blur-xl p-10 rounded-3xl shadow-2xl border border-white/50"
         >
-          <Loader2 className="h-16 w-16 animate-spin text-blue-600 mx-auto mb-6" />
-          <p className="text-gray-700 text-xl font-medium">
+          <Loader2 className="h-20 w-20 animate-spin text-blue-600 mx-auto mb-8" />
+          <p className="text-gray-700 text-xl font-medium tracking-wide">
             Loading live bus details...
           </p>
         </motion.div>
@@ -109,21 +109,25 @@ const BusDetailsPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-red-50 to-rose-100 flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="text-center bg-white p-8 rounded-2xl shadow-xl border border-red-300"
+          className="text-center bg-white/80 backdrop-blur-xl p-10 rounded-3xl shadow-2xl border border-red-200/50 max-w-lg"
         >
+          <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CircleDot className="h-10 w-10 text-red-600" />
+          </div>
           <p className="text-red-600 text-2xl font-bold mb-4">{error}</p>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-8 leading-relaxed">
             Please try again or check your internet connection.
           </p>
           <button
             onClick={handleBack}
-            className="inline-flex items-center px-8 py-3 bg-blue-600 text-white font-semibold rounded-full
-                         hover:bg-blue-700 transition duration-300 shadow-md transform hover:scale-105"
+            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-2xl
+                         hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105
+                         focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50"
           >
             <ArrowLeft className="h-5 w-5 mr-3" />
             Back to Results
@@ -135,24 +139,28 @@ const BusDetailsPage = () => {
 
   if (!sessionData || !busDetails) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50 to-amber-100 flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
-          className="text-center bg-white p-8 rounded-2xl shadow-xl border border-orange-300"
+          className="text-center bg-white/80 backdrop-blur-xl p-10 rounded-3xl shadow-2xl border border-orange-200/50 max-w-lg"
         >
+          <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Bus className="h-10 w-10 text-orange-600" />
+          </div>
           <p className="text-orange-600 text-2xl font-bold mb-4">
             Bus session not found or has ended.
           </p>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-8 leading-relaxed">
             This bus might not be active on its route right now, or the session
             has concluded.
           </p>
           <button
             onClick={handleBack}
-            className="inline-flex items-center px-8 py-3 bg-blue-600 text-white font-semibold rounded-full
-                         hover:bg-blue-700 transition duration-300 shadow-md transform hover:scale-105"
+            className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-2xl
+                         hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105
+                         focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50"
           >
             <ArrowLeft className="h-5 w-5 mr-3" />
             Back to Results
@@ -249,112 +257,128 @@ const BusDetailsPage = () => {
     <motion.div
       initial="hidden"
       animate="visible"
-      className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 pb-12 sm:p-6 lg:p-10 flex flex-col items-center relative"
+      className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 pb-16 sm:p-6 lg:p-10 flex flex-col items-center relative overflow-x-hidden"
     >
       {/* Back Button - Positioned top-left */}
       <motion.button
         onClick={handleBack}
-        className="absolute top-4 left-4 sm:top-6 sm:left-6 inline-flex items-center px-4 py-2 bg-white text-gray-800 rounded-full hover:bg-gray-100 transition-colors duration-200 shadow-md text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        className="absolute top-6 left-6 sm:top-8 sm:left-8 inline-flex items-center px-6 py-3 bg-white/80 backdrop-blur-md text-gray-800 rounded-2xl hover:bg-white/90 transition-all duration-300 shadow-lg hover:shadow-xl text-sm sm:text-base focus:outline-none focus:ring-4 focus:ring-blue-400 focus:ring-opacity-50 transform hover:scale-105 group"
         variants={itemVariants}
       >
-        <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-2" /> Back
+        <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
+        Back
       </motion.button>
 
       {/* Header */}
       <motion.header
-        className="text-center mt-12 mb-8 sm:mb-10 lg:mb-12 max-w-lg w-full"
+        className="text-center mt-20 mb-10 sm:mb-12 lg:mb-16 max-w-2xl w-full px-4"
         variants={sectionVariants}
       >
-        <div className="flex justify-center mb-4">
-          <Bus className="h-14 w-14 text-blue-600" />
+        <div className="flex justify-center mb-6">
+          <div className="p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl shadow-xl">
+            <Bus className="h-16 w-16 text-white" />
+          </div>
         </div>
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-gray-800 mb-2">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-700 mb-4">
           Live Bus Tracking
         </h1>
-        <p className="text-lg sm:text-xl font-medium text-gray-700">
-          Route: <span className="font-bold">{sessionData.routeName}</span>
-        </p>
-        <p className="text-md sm:text-lg text-gray-600 mt-1">
-          Bus: <span className="font-semibold">{busDetails.busNumber}</span> (
-          {busDetails.busModel})
-        </p>
+        <div className="space-y-2">
+          <p className="text-xl sm:text-2xl font-medium text-gray-700">
+            Route:{" "}
+            <span className="font-bold text-blue-700">
+              {sessionData.routeName}
+            </span>
+          </p>
+          <p className="text-lg sm:text-xl text-gray-600">
+            Bus:{" "}
+            <span className="font-semibold text-gray-800">
+              {busDetails.busNumber}
+            </span>
+            <span className="text-gray-500 font-normal">
+              {" "}
+              • {busDetails.busModel}
+            </span>
+          </p>
+        </div>
       </motion.header>
 
       {/* Main Content */}
       <motion.main
-        className="w-full max-w-3xl space-y-6 sm:space-y-8"
+        className="w-full max-w-4xl space-y-8 sm:space-y-10 px-4 sm:px-0"
         variants={sectionVariants}
       >
         {/* Live Status Section */}
         <motion.div
-          className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 backdrop-blur-sm bg-opacity-90 border border-blue-100"
+          className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-10 border border-white/50 relative overflow-hidden"
           variants={itemVariants}
         >
-          <h2 className="text-2xl sm:text-2xl font-bold text-gray-800 mb-5 flex items-center">
-            <MapPin className="h-7 w-7 mr-3 text-blue-600" /> Current Status
+          <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-indigo-400/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-8 flex items-center relative z-10">
+            <div className="p-3 bg-blue-100 rounded-2xl mr-4">
+              <MapPin className="h-7 w-7 text-blue-600" />
+            </div>
+            Current Status
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-lg">
-            <p className="font-semibold text-blue-800 flex items-center">
-              <CircleDot className="h-5 w-5 mr-2 text-blue-500" />
-              पुढील स्टॉप : {stops[currentStopIndex] || "N/A"}
-            </p>
-            {/* {currentStopIndex < stops.length - 1 && (
-              <p className="text-blue-700 flex items-center">
-                <MapPin className="h-5 w-5 mr-2 text-blue-400" />
-                Next Stop: {stops[currentStopIndex + 1]}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-lg relative z-10">
+            <div className="bg-blue-50/50 backdrop-blur-sm p-6 rounded-2xl border border-blue-100">
+              <p className="font-semibold text-blue-900 flex items-center">
+                <CircleDot className="h-6 w-6 mr-3 text-blue-600 animate-pulse" />
+                पुढील स्टॉप : {stops[currentStopIndex] || "N/A"}
               </p>
-            )} */}
-            <p className="text-blue-700 flex items-center">
-              <Play className="h-5 w-5 mr-2 text-blue-400" />
-              पहिल्या स्टॉप वरुण निघालेली वेळ :{" "}
-              {formatTime(sessionData.startTime)}
-            </p>
-            {/* <p className="text-blue-700 flex items-center">
-              <Clock className="h-5 w-5 mr-2 text-blue-400" />
-              Current Stop Time: {getStopTime(currentStopIndex) || "N/A"}
-            </p> */}
+            </div>
+            <div className="bg-indigo-50/50 backdrop-blur-sm p-6 rounded-2xl border border-indigo-100">
+              <p className="text-indigo-900 font-medium flex items-center">
+                <Play className="h-6 w-6 mr-3 text-indigo-600" />
+                पहिल्या स्टॉप वरुन निघालेली वेळ :{" "}
+                {formatTime(sessionData.startTime)}
+              </p>
+            </div>
           </div>
         </motion.div>
 
         {/* Route Progress */}
         <motion.div
-          className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 backdrop-blur-sm bg-opacity-90 border border-green-100"
+          className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl p-8 sm:p-10 border border-white/50 relative overflow-hidden"
           variants={itemVariants}
         >
-          <h2 className="text-2xl sm:text-2xl font-bold text-gray-800 mb-5 flex items-center">
-            <Bus className="h-7 w-7 mr-3 text-green-600" /> Route Progress
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-green-400/10 to-emerald-400/10 rounded-full blur-3xl -ml-48 -mb-48"></div>
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-8 flex items-center relative z-10">
+            <div className="p-3 bg-green-100 rounded-2xl mr-4">
+              <Bus className="h-7 w-7 text-green-600" />
+            </div>
+            Route Progress
           </h2>
-          <div className="space-y-4">
+          <div className="space-y-4 relative z-10">
             {stops.map((stop, index) => {
               const stopTime = getStopTime(index)
 
               return (
                 <motion.div
                   key={index}
-                  className={`flex items-center space-x-3 p-4 rounded-xl transition-all duration-300
+                  className={`group flex items-center space-x-4 p-5 rounded-2xl transition-all duration-500 transform hover:scale-[1.02]
                     ${
                       index < currentStopIndex
-                        ? "bg-green-50 border border-green-200"
+                        ? "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 shadow-md hover:shadow-lg"
                         : index === currentStopIndex
-                        ? "bg-blue-50 border border-blue-200 shadow-md"
-                        : "bg-gray-50 border border-gray-200"
+                        ? "bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 shadow-xl hover:shadow-2xl"
+                        : "bg-gray-50/70 border border-gray-200 hover:bg-gray-100/70 hover:shadow-md"
                     }`}
                   variants={itemVariants}
                 >
                   <div
-                    className={`flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full
+                    className={`flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full transition-all duration-300
                       ${
                         index < currentStopIndex
-                          ? "bg-green-500 text-white"
+                          ? "bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg"
                           : index === currentStopIndex
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-300 text-gray-600"
+                          ? "bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg animate-pulse"
+                          : "bg-gray-300 text-gray-600 group-hover:bg-gray-400"
                       }`}
                   >
                     {index < currentStopIndex ? (
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className="h-5 w-5" />
                     ) : index === currentStopIndex ? (
-                      <CircleDot className="h-4 w-4" />
+                      <CircleDot className="h-5 w-5" />
                     ) : (
                       <Circle className="h-4 w-4" />
                     )}
@@ -362,12 +386,12 @@ const BusDetailsPage = () => {
 
                   <div className="flex-1 flex items-center justify-between">
                     <span
-                      className={`font-medium text-lg
+                      className={`font-medium text-lg tracking-wide
                         ${
                           index < currentStopIndex
                             ? "text-green-900"
                             : index === currentStopIndex
-                            ? "text-blue-900 font-semibold"
+                            ? "text-blue-900 font-bold text-xl"
                             : "text-gray-700"
                         }`}
                     >
@@ -377,22 +401,22 @@ const BusDetailsPage = () => {
                     {/* Time display for each stop */}
                     <div className="flex items-center text-sm font-medium">
                       {index < currentStopIndex && stopTime && (
-                        <div className="flex items-center text-green-600">
-                          <CheckCircle2 className="h-4 w-4 mr-1" />
+                        <div className="flex items-center text-green-700 bg-green-100/50 px-3 py-1.5 rounded-xl">
+                          <CheckCircle2 className="h-4 w-4 mr-2" />
                           {stopTime} ला पोहोचली
                         </div>
                       )}
 
                       {index === currentStopIndex && (
-                        <div className="flex items-center text-blue-600">
-                          <Clock className="h-4 w-4 mr-1" />
+                        <div className="flex items-center text-blue-700 bg-blue-100/50 px-3 py-1.5 rounded-xl">
+                          <Clock className="h-4 w-4 mr-2 animate-pulse" />
                           {stopTime ? `येत आहे ` : "Current Location"}
                         </div>
                       )}
 
                       {index > currentStopIndex && (
-                        <div className="flex items-center text-gray-500">
-                          <Circle className="h-4 w-4 mr-1" />
+                        <div className="flex items-center text-gray-500 bg-gray-100/50 px-3 py-1.5 rounded-xl">
+                          <Circle className="h-4 w-4 mr-2" />
                           Upcoming
                         </div>
                       )}
@@ -406,13 +430,19 @@ const BusDetailsPage = () => {
       </motion.main>
 
       {/* Footer */}
-      <footer className="text-center text-gray-500 text-sm mt-10 w-full">
-        <p>Built for Bharat | Powered by Students</p>
+      <footer className="text-center text-gray-600 text-sm mt-16 w-full space-y-2">
+        <p className="font-medium">Built for Bharat | Powered by Students</p>
+        <p className="text-xs text-gray-500">© 2025 Bus Tracking System</p>
       </footer>
 
-      {/* Background Pattern */}
-      <div className="fixed inset-0 -z-10 opacity-10">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0icmdiYSgwLDAsMCwwLjAyKSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')]"></div>
+      {/* Enhanced Background Pattern */}
+      <div className="fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl animate-pulse"></div>
+        <div
+          className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl animate-pulse"
+          style={{ animationDelay: "1s" }}
+        ></div>
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0icmdiYSgwLDAsMCwwLjAyKSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuKSIvPjwvc3ZnPg==')] opacity-50"></div>
       </div>
     </motion.div>
   )

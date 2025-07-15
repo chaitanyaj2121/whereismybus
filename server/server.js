@@ -27,13 +27,8 @@ app.use(
 
 app.use(express.json())
 
-// Routes
-app.use("/api/drivers", require("./routes/drivers"))
-
-// Health check route
-app.get("/", (req, res) => {
-  res.json({ message: "Driver App API Server" })
-})
+// // Routes
+// app.use("/api/drivers", require("./routes/drivers"))
 
 // Start server
 app.listen(PORT, () => {
